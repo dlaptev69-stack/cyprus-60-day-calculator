@@ -1,8 +1,8 @@
-# Cyprus 60-day Calculator — Nadezhda Danilova
+# Cyprus 60-day Calculator — Nadya
 
 Russian-language Cyprus tax residency "60-day rule" calculator with a small
 Node + SQLite backend for cloud-based draft storage. Math is deterministic
-JavaScript — no LLM is used for calculation. This is the Nadezhda Danilova
+JavaScript — no LLM is used for calculation. This is the Nadya
 workspace edition of the calculator.
 
 ## Architecture
@@ -27,7 +27,7 @@ autosave enabled and an access code entered).
   country breakdown, warnings, disclaimer, source links.
 - `public/calc.js` — deterministic calculation engine.
 - `public/app.js` — UI controller, sample loaders, render pipeline, cloud sync client.
-- `public/styles.css` — Mediterranean limestone-and-teal palette, mobile-responsive.
+- `public/styles.css` — Pink-toned Cyprus palette (rose / blush gradients), mobile-responsive.
 - `server.js` — Express + better-sqlite3 server with the `/api/*` endpoints,
   rate limiting, and `public/` as the only static root.
 - `tests/smoke.js` — Node smoke test exercising the API end-to-end against a
@@ -130,7 +130,7 @@ process to serve the API.
   separate trip rows; it does not model intra-row trips.
 - Access codes are SHA-256 hashed; `/api/*` is per-IP rate-limited. Pick a
   long, unique code (minimum 8 characters); avoid short common values like
-  `password` or `nadezhda123`.
+  `password` or `nadya123`.
 
 ## Legal disclaimer
 

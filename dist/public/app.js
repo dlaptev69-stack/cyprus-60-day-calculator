@@ -643,7 +643,7 @@
       font-family: Arial, Helvetica, sans-serif;
       padding: 16px 18px;
       border: 1px solid #d7dddd;
-      border-left: 4px solid #0b6f78;
+      border-left: 4px solid #B23A6C;
       background: #ffffff;
       color: #142326;
       font-size: 11.5px;
@@ -673,7 +673,7 @@
 <body>
   <main class="sheet">
     <header class="document-header">
-      <div class="brand">Nadezhda Danilova<small>Cyprus 60-Day Calculator</small></div>
+      <div class="brand">Nadya<small>Cyprus 60-Day Calculator</small></div>
       <div class="doc-ref">Tax year: ${escapeHtml(year)}<br>Generated: ${escapeHtml(generatedAt)}<br>Status: preliminary</div>
     </header>
     <h1>Tax Residency Calculation Memo</h1>
