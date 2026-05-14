@@ -1085,3 +1085,49 @@ table.trips td input:focus, table.trips td select:focus {
     white-space: pre-wrap;
   }
 }
+
+/* -------- Cloud sync section -------- */
+.cloud-sync .cloud-grid { align-items: end; }
+.cloud-actions-field label { color: var(--text-muted); font-weight: 600; font-size: 12px; text-transform: uppercase; letter-spacing: 0.08em; }
+.cloud-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.cloud-actions .btn { flex: 0 1 auto; }
+.cloud-status {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 14px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  border: 1px solid rgba(11, 111, 120, 0.18);
+  background: var(--accent-soft);
+  color: var(--accent-ink);
+  font-size: 13px;
+  line-height: 1.4;
+}
+.cloud-status .cloud-status-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--accent);
+  flex-shrink: 0;
+  box-shadow: 0 0 0 3px rgba(11, 111, 120, 0.15);
+}
+.cloud-status.status-busy { background: var(--accent-soft); }
+.cloud-status.status-busy .cloud-status-dot { background: var(--accent); animation: cloud-pulse 1.2s ease-in-out infinite; }
+.cloud-status.status-ok { background: var(--success-soft); color: #1b4d2e; border-color: rgba(45, 122, 75, 0.25); }
+.cloud-status.status-ok .cloud-status-dot { background: var(--success); }
+.cloud-status.status-info { background: #f3f1e8; color: var(--text); border-color: rgba(101, 110, 113, 0.25); }
+.cloud-status.status-info .cloud-status-dot { background: var(--text-muted); }
+.cloud-status.status-error { background: var(--danger-soft); color: #6b1f17; border-color: rgba(167, 58, 47, 0.3); }
+.cloud-status.status-error .cloud-status-dot { background: var(--danger); }
+.cloud-autosave { margin-top: 14px; }
+
+@keyframes cloud-pulse {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.4); opacity: 0.55; }
+}
+
+@media (max-width: 720px) {
+  .cloud-actions { flex-direction: column; }
+  .cloud-actions .btn { width: 100%; justify-content: center; }
+}

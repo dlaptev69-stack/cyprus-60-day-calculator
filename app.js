@@ -713,10 +713,167 @@
   $("#calculate").addEventListener("click", () => {
     window._suppressScroll = false;
     runCalc();
+    if ($("#cloud_autosave")?.checked && getAccessCode()) {
+      cloudSave({ silentIfNoCode: true });
+    }
   });
 
   $("#copy-report").addEventListener("click", copyReport);
   $("#print-report").addEventListener("click", printReport);
+
+  // -------- Cloud sync (no browser storage) --------
+  function getAccessCode() {
+    const el = $("#cloud_access_code");
+    return el ? el.value.trim() : "";
+  }
+
+  function setCloudStatus(kind, message) {
+    const wrap = $("#cloud-status");
+    if (!wrap) return;
+    wrap.classList.remove("status-idle", "status-busy", "status-ok", "status-info", "status-error");
+    wrap.classList.add(`status-${kind}`);
+    const textEl = wrap.querySelector(".cloud-status-text");
+    if (textEl) textEl.textContent = message;
+  }
+
+  function applyPayloadToUI(p) {
+    if (!p || typeof p !== "object") return;
+    if (p.tax_year !== undefined && p.tax_year !== null) {
+      $("#tax_year").value = String(p.tax_year);
+    }
+    if (p.has_cyprus_home) $("#has_cyprus_home").value = p.has_cyprus_home;
+    if (p.has_cyprus_business_or_employment_or_directorship) {
+      $("#has_cyprus_business_or_employment_or_directorship").value = p.has_cyprus_business_or_employment_or_directorship;
+    }
+    if (p.possible_tax_resident_elsewhere) {
+      $("#possible_tax_resident_elsewhere").value = p.possible_tax_resident_elsewhere;
+    }
+    const s = p.settings || {};
+    const settingMap = {
+      arrival_day_counts_for_cyprus: "#set_arrival_cyprus",
+      departure_day_counts_for_cyprus: "#set_departure_cyprus",
+      same_day_arrival_departure_counts_for_cyprus: "#set_same_day_arr_dep_cyprus",
+      same_day_departure_return_counts_for_cyprus: "#set_same_day_dep_ret_cyprus",
+      transit_day_counts_for_cyprus: "#set_transit_cyprus",
+      arrival_day_counts_other_countries: "#set_arrival_other",
+      departure_day_counts_other_countries: "#set_departure_other",
+    };
+    for (const [k, sel] of Object.entries(settingMap)) {
+      if (typeof s[k] === "boolean") $(sel).checked = s[k];
+    }
+    clearTrips();
+    const trips = Array.isArray(p.trips) ? p.trips : [];
+    if (trips.length === 0) {
+      makeRow();
+    } else {
+      for (const t of trips) makeRow(t);
+    }
+  }
+
+  async function cloudLoad() {
+    const code = getAccessCode();
+    if (!code || code.length < 4) {
+      setCloudStatus("error", "Введи код доступа (минимум 4 символа), чтобы загрузить данные.");
+      return;
+    }
+    const year = Number($("#tax_year").value);
+    if (!Number.isInteger(year)) {
+      setCloudStatus("error", "Налоговый год заполнен некорректно.");
+      return;
+    }
+    setCloudStatus("busy", "Загружаю данные из облака…");
+    try {
+      const url = `/api/draft?access_code=${encodeURIComponent(code)}&tax_year=${encodeURIComponent(year)}`;
+      const res = await fetch(url, { headers: { "Accept": "application/json" } });
+      const data = await res.json();
+      if (!res.ok || !data.ok) {
+        setCloudStatus("error", `Не удалось загрузить: ${data.error || res.statusText}`);
+        return;
+      }
+      if (!data.found) {
+        setCloudStatus("info", `Для этого кода и года ${year} в облаке черновик пока не сохранён.`);
+        return;
+      }
+      applyPayloadToUI(data.payload);
+      window._suppressScroll = true;
+      runCalc();
+      window._suppressScroll = false;
+      setCloudStatus("ok", `Загружено из облака (обновлено: ${formatStamp(data.updated_at)}).`);
+    } catch (err) {
+      setCloudStatus("error", `Сеть недоступна или сервер не отвечает: ${err.message}`);
+    }
+  }
+
+  async function cloudSave(opts = {}) {
+    const code = getAccessCode();
+    if (!code || code.length < 4) {
+      if (opts.silentIfNoCode) return;
+      setCloudStatus("error", "Введи код доступа (минимум 4 символа), чтобы сохранить данные.");
+      return;
+    }
+    const payload = buildPayload();
+    setCloudStatus("busy", "Сохраняю в облако…");
+    try {
+      const res = await fetch("/api/draft", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "Accept": "application/json" },
+        body: JSON.stringify({ access_code: code, payload }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.ok) {
+        setCloudStatus("error", `Не удалось сохранить: ${data.error || res.statusText}`);
+        return;
+      }
+      setCloudStatus("ok", `Сохранено в облако (${formatStamp(data.updated_at)}).`);
+    } catch (err) {
+      setCloudStatus("error", `Сеть недоступна или сервер не отвечает: ${err.message}`);
+    }
+  }
+
+  async function cloudClear() {
+    const code = getAccessCode();
+    if (!code || code.length < 4) {
+      setCloudStatus("error", "Введи код доступа, чтобы удалить облачный черновик.");
+      return;
+    }
+    const year = Number($("#tax_year").value);
+    if (!confirm(`Удалить облачный черновик для этого кода и года ${year}? Локальная форма останется без изменений.`)) {
+      return;
+    }
+    setCloudStatus("busy", "Удаляю черновик…");
+    try {
+      const url = `/api/draft?access_code=${encodeURIComponent(code)}&tax_year=${encodeURIComponent(year)}`;
+      const res = await fetch(url, { method: "DELETE", headers: { "Accept": "application/json" } });
+      const data = await res.json();
+      if (!res.ok || !data.ok) {
+        setCloudStatus("error", `Не удалось удалить: ${data.error || res.statusText}`);
+        return;
+      }
+      if (data.deleted > 0) {
+        setCloudStatus("ok", "Облачный черновик удалён.");
+      } else {
+        setCloudStatus("info", "В облаке не было черновика для этого кода и года.");
+      }
+    } catch (err) {
+      setCloudStatus("error", `Сеть недоступна или сервер не отвечает: ${err.message}`);
+    }
+  }
+
+  function formatStamp(iso) {
+    if (!iso) return "";
+    try {
+      return new Date(iso).toLocaleString("ru-RU", {
+        year: "numeric", month: "2-digit", day: "2-digit",
+        hour: "2-digit", minute: "2-digit",
+      });
+    } catch (e) {
+      return iso;
+    }
+  }
+
+  $("#cloud-load")?.addEventListener("click", cloudLoad);
+  $("#cloud-save")?.addEventListener("click", () => cloudSave());
+  $("#cloud-clear")?.addEventListener("click", cloudClear);
 
   // Initial state: one empty row
   makeRow();

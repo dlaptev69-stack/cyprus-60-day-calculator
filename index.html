@@ -161,6 +161,46 @@
     </div>
   </section>
 
+  <!-- Cloud sync -->
+  <section class="card cloud-sync" aria-labelledby="cloud-h" data-testid="cloud-sync">
+    <h2 id="cloud-h">Облачное хранение</h2>
+    <p class="desc">Введи свой код доступа — это твой персональный «ключ» к данным. По связке «код + налоговый год» поездки и настройки сохраняются в облаке и подгружаются с любого устройства. Браузерное хранилище не используется.</p>
+    <div class="grid grid-2 cloud-grid">
+      <div class="field">
+        <label for="cloud_access_code">Код доступа</label>
+        <input id="cloud_access_code" type="text" class="input" autocomplete="off" spellcheck="false"
+          placeholder="например: denis-2026-secret"
+          data-testid="input-access-code" />
+        <span class="hint">Минимум 4 символа. Запомни его — без кода данные не открыть.</span>
+      </div>
+      <div class="field cloud-actions-field">
+        <label>Действия с облаком</label>
+        <div class="cloud-actions">
+          <button type="button" class="btn" id="cloud-load" data-testid="button-cloud-load">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="M7 10l5 5 5-5"/><path d="M5 21h14"/></svg>
+            Загрузить из облака
+          </button>
+          <button type="button" class="btn btn-primary" id="cloud-save" data-testid="button-cloud-save">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><path d="M17 21v-8H7v8"/><path d="M7 3v5h8"/></svg>
+            Сохранить в облако
+          </button>
+          <button type="button" class="btn btn-ghost" id="cloud-clear" data-testid="button-cloud-clear">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
+            Удалить черновик
+          </button>
+        </div>
+      </div>
+    </div>
+    <div class="cloud-status" id="cloud-status" data-testid="cloud-status" aria-live="polite">
+      <span class="cloud-status-dot" aria-hidden="true"></span>
+      <span class="cloud-status-text">Облако ещё не использовалось в этой сессии.</span>
+    </div>
+    <label class="toggle cloud-autosave">
+      <input type="checkbox" id="cloud_autosave" checked data-testid="toggle-cloud-autosave" />
+      <span class="toggle-label"><b>Автосохранение в облако после нажатия «Рассчитать»</b><span class="toggle-desc">Данные уходят на сервер сразу после расчёта, если код доступа заполнен.</span></span>
+    </label>
+  </section>
+
   <!-- Trips -->
   <section class="card" aria-labelledby="trips-h">
     <h2 id="trips-h">Поездки</h2>
