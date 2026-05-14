@@ -1,0 +1,16 @@
+{
+  "name": "cyprus-60-day-calculator",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Client-side Cyprus 60-day tax residency calculator for Denis.",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.19.2"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
