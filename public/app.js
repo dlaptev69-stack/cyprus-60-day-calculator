@@ -713,9 +713,7 @@
   $("#calculate").addEventListener("click", () => {
     window._suppressScroll = false;
     runCalc();
-    if ($("#cloud_autosave")?.checked && getAccessCode()) {
-      cloudSave({ silentIfNoCode: true });
-    }
+    scheduleAutosave({ immediate: true });
   });
 
   // Trigger autosave whenever the user edits trip rows (inputs/selects inside
@@ -728,25 +726,37 @@
 
   // -------- Cloud sync (no localStorage / sessionStorage / indexedDB) --------
   //
-  // Trip data lives only in cloud SQLite. The ONLY thing remembered in this
-  // browser is a cookie with the access code + tax_year, so a refresh can
-  // re-fetch the cloud draft without the user re-typing the code. The cookie
-  // is opt-in via #cloud_remember (default: on). When disabled or cleared,
-  // a refresh shows an empty form.
-  const ACCESS_CODE_MIN_LEN = 8;
-  const REMEMBER_COOKIE = "cyprus60_remember";
-  const COOKIE_MAX_AGE_DAYS = 180;
-  const AUTOSAVE_DEBOUNCE_MS = 1200;
+  // Trip data lives only in cloud SQLite. This browser stores ONLY a
+  // workspace key + tax_year in a cookie. The workspace key is auto-generated
+  // on first visit with crypto.getRandomValues — the user never sees or types
+  // it. The same key is used as the backend access_code for every autosave
+  // and auto-load.
+  //
+  // Cross-device access: "Скопировать приватную ссылку" produces a URL whose
+  // hash carries the workspace key + year. Opening that URL on a new device
+  // imports the key into a cookie there and auto-loads the same cloud draft.
+  // The hash is never sent in HTTP requests, so it stays out of server logs.
+  const WORKSPACE_KEY_LEN = 32; // 32 chars of base32 alphabet, well above 8-char backend min
+  const WORKSPACE_COOKIE = "cyprus60_workspace";
+  const COOKIE_MAX_AGE_DAYS = 365;
+  const AUTOSAVE_DEBOUNCE_MS = 1000;
 
   let autosaveTimer = null;
   let lastAutosaveSig = "";
+  let lastSavedAt = null;
   // Suppress autosave while we programmatically populate the form (samples,
   // cloud load). Otherwise loading a draft would immediately re-save it.
   let suppressAutosave = false;
+  let workspaceKey = null;
 
-  function getAccessCode() {
-    const el = $("#cloud_access_code");
-    return el ? el.value.trim() : "";
+  function generateWorkspaceKey() {
+    // base32-like alphabet (no padding, easy to embed in a URL)
+    const alphabet = "abcdefghijkmnopqrstuvwxyz23456789";
+    const bytes = new Uint8Array(WORKSPACE_KEY_LEN);
+    crypto.getRandomValues(bytes);
+    let out = "";
+    for (let i = 0; i < bytes.length; i++) out += alphabet[bytes[i] % alphabet.length];
+    return out;
   }
 
   function getTaxYear() {
@@ -754,29 +764,25 @@
     return Number.isInteger(n) ? n : null;
   }
 
-  function rememberEnabled() {
-    return !!$("#cloud_remember")?.checked;
-  }
-
-  function writeRememberCookie(code, year) {
-    if (!code || !year) return;
-    const value = encodeURIComponent(JSON.stringify({ code, year }));
+  function writeWorkspaceCookie(key, year) {
+    if (!key || !year) return;
+    const value = encodeURIComponent(JSON.stringify({ key, year }));
     const maxAge = COOKIE_MAX_AGE_DAYS * 24 * 60 * 60;
     const secure = location.protocol === "https:" ? "; Secure" : "";
-    document.cookie = `${REMEMBER_COOKIE}=${value}; Path=/; Max-Age=${maxAge}; SameSite=Lax${secure}`;
+    document.cookie = `${WORKSPACE_COOKIE}=${value}; Path=/; Max-Age=${maxAge}; SameSite=Lax${secure}`;
   }
 
-  function clearRememberCookie() {
+  function clearWorkspaceCookie() {
     const secure = location.protocol === "https:" ? "; Secure" : "";
-    document.cookie = `${REMEMBER_COOKIE}=; Path=/; Max-Age=0; SameSite=Lax${secure}`;
+    document.cookie = `${WORKSPACE_COOKIE}=; Path=/; Max-Age=0; SameSite=Lax${secure}`;
   }
 
-  function readRememberCookie() {
-    const raw = document.cookie.split("; ").find((c) => c.startsWith(REMEMBER_COOKIE + "="));
+  function readWorkspaceCookie() {
+    const raw = document.cookie.split("; ").find((c) => c.startsWith(WORKSPACE_COOKIE + "="));
     if (!raw) return null;
     try {
       const parsed = JSON.parse(decodeURIComponent(raw.split("=").slice(1).join("=")));
-      if (typeof parsed.code === "string" && Number.isInteger(parsed.year)) {
+      if (typeof parsed.key === "string" && parsed.key.length >= 8 && Number.isInteger(parsed.year)) {
         return parsed;
       }
     } catch (_) {
@@ -785,33 +791,59 @@
     return null;
   }
 
-  function syncRememberCookieFromUI() {
-    if (!rememberEnabled()) {
-      clearRememberCookie();
-      return;
-    }
-    const code = getAccessCode();
-    const year = getTaxYear();
-    if (code && code.length >= ACCESS_CODE_MIN_LEN && year) {
-      writeRememberCookie(code, year);
+  function parseHashWorkspace() {
+    // Accept #workspace=...&year=... (preferred) or ?workspace=...&year=...
+    const fromHash = () => {
+      const h = location.hash.replace(/^#/, "");
+      if (!h) return null;
+      const params = new URLSearchParams(h);
+      const key = params.get("workspace");
+      const yearRaw = params.get("year");
+      if (!key) return null;
+      const year = Number(yearRaw);
+      return { key, year: Number.isInteger(year) ? year : null };
+    };
+    const fromQuery = () => {
+      const params = new URLSearchParams(location.search);
+      const key = params.get("workspace");
+      const yearRaw = params.get("year");
+      if (!key) return null;
+      const year = Number(yearRaw);
+      return { key, year: Number.isInteger(year) ? year : null };
+    };
+    return fromHash() || fromQuery();
+  }
+
+  function stripWorkspaceFromUrl() {
+    try {
+      const url = new URL(location.href);
+      const hashParams = new URLSearchParams(url.hash.replace(/^#/, ""));
+      hashParams.delete("workspace");
+      hashParams.delete("year");
+      const newHash = hashParams.toString();
+      url.hash = newHash ? `#${newHash}` : "";
+      url.searchParams.delete("workspace");
+      url.searchParams.delete("year");
+      history.replaceState(null, "", url.toString());
+    } catch (_) {
+      // best-effort only
     }
   }
 
-  function scheduleAutosave() {
+  function scheduleAutosave(opts = {}) {
     if (suppressAutosave) return;
-    if (!$("#cloud_autosave")?.checked) return;
-    const code = getAccessCode();
-    if (!code || code.length < ACCESS_CODE_MIN_LEN) return;
+    if (!workspaceKey) return;
     if (!getTaxYear()) return;
     if (autosaveTimer) clearTimeout(autosaveTimer);
+    const delay = opts.immediate ? 0 : AUTOSAVE_DEBOUNCE_MS;
     autosaveTimer = setTimeout(() => {
       autosaveTimer = null;
       const payload = buildPayload();
       const sig = JSON.stringify(payload);
       if (sig === lastAutosaveSig) return;
       lastAutosaveSig = sig;
-      cloudSave({ silentIfNoCode: true, autosave: true });
-    }, AUTOSAVE_DEBOUNCE_MS);
+      cloudSave({ autosave: true });
+    }, delay);
   }
 
   function setCloudStatus(kind, message) {
@@ -821,6 +853,13 @@
     wrap.classList.add(`status-${kind}`);
     const textEl = wrap.querySelector(".cloud-status-text");
     if (textEl) textEl.textContent = message;
+  }
+
+  function refreshAdvancedPanel() {
+    const yearEl = $("#cloud-year-display");
+    if (yearEl) yearEl.textContent = getTaxYear() ?? "—";
+    const stampEl = $("#cloud-last-saved");
+    if (stampEl) stampEl.textContent = lastSavedAt ? formatStamp(lastSavedAt) : "пока не было";
   }
 
   function applyPayloadToUI(p) {
@@ -862,20 +901,16 @@
     suppressAutosave = false;
   }
 
-  async function cloudLoad() {
-    const code = getAccessCode();
-    if (!code || code.length < ACCESS_CODE_MIN_LEN) {
-      setCloudStatus("error", `Введи код доступа (минимум ${ACCESS_CODE_MIN_LEN} символов), чтобы загрузить данные.`);
-      return;
-    }
-    const year = Number($("#tax_year").value);
-    if (!Number.isInteger(year)) {
+  async function cloudLoad(opts = {}) {
+    if (!workspaceKey) return;
+    const year = getTaxYear();
+    if (!year) {
       setCloudStatus("error", "Налоговый год заполнен некорректно.");
       return;
     }
     setCloudStatus("busy", "Загружаю данные из облака…");
     try {
-      const url = `/api/draft?access_code=${encodeURIComponent(code)}&tax_year=${encodeURIComponent(year)}`;
+      const url = `/api/draft?access_code=${encodeURIComponent(workspaceKey)}&tax_year=${encodeURIComponent(year)}`;
       const res = await fetch(url, { headers: { "Accept": "application/json" } });
       const data = await res.json();
       if (!res.ok || !data.ok) {
@@ -883,81 +918,113 @@
         return;
       }
       if (!data.found) {
-        setCloudStatus("info", `Для этого кода и года ${year} в облаке черновик пока не сохранён.`);
+        // No draft yet — that is the normal first-visit state. Sit silently in
+        // "ready to autosave" mode so the form looks clean.
+        lastAutosaveSig = JSON.stringify(buildPayload());
+        setCloudStatus("idle", "Автосохранение включено");
+        refreshAdvancedPanel();
         return;
       }
       applyPayloadToUI(data.payload);
       window._suppressScroll = true;
       runCalc();
       window._suppressScroll = false;
-      syncRememberCookieFromUI();
-      setCloudStatus("ok", `Загружено из облака (обновлено: ${formatStamp(data.updated_at)}). Сами данные остаются в облаке Railway.`);
+      lastSavedAt = data.updated_at;
+      writeWorkspaceCookie(workspaceKey, year);
+      const prefix = opts.fromLink ? "Загружено по приватной ссылке" : "Загружено";
+      setCloudStatus("ok", `${prefix} · обновлено ${formatStamp(data.updated_at)}`);
+      refreshAdvancedPanel();
     } catch (err) {
       setCloudStatus("error", `Сеть недоступна или сервер не отвечает: ${err.message}`);
     }
   }
 
   async function cloudSave(opts = {}) {
-    const code = getAccessCode();
-    if (!code || code.length < ACCESS_CODE_MIN_LEN) {
-      if (opts.silentIfNoCode) return;
-      setCloudStatus("error", `Введи код доступа (минимум ${ACCESS_CODE_MIN_LEN} символов), чтобы сохранить данные.`);
-      return;
-    }
+    if (!workspaceKey) return;
     const payload = buildPayload();
-    setCloudStatus("busy", "Сохраняю в облако…");
+    const year = getTaxYear();
+    setCloudStatus("busy", "Сохраняю…");
     try {
       const res = await fetch("/api/draft", {
         method: "POST",
         headers: { "Content-Type": "application/json", "Accept": "application/json" },
-        body: JSON.stringify({ access_code: code, payload }),
+        body: JSON.stringify({ access_code: workspaceKey, payload }),
       });
       const data = await res.json();
       if (!res.ok || !data.ok) {
-        setCloudStatus("error", `Не удалось сохранить: ${data.error || res.statusText}`);
+        setCloudStatus("error", `Ошибка сохранения: ${data.error || res.statusText}`);
         return;
       }
       lastAutosaveSig = JSON.stringify(payload);
-      syncRememberCookieFromUI();
-      const stamp = formatStamp(data.updated_at);
-      const prefix = opts.autosave ? "Автосохранено в облако" : "Сохранено в облако";
-      setCloudStatus("ok", `${prefix} (${stamp}). Поездки и настройки лежат на сервере, не в браузере.`);
+      lastSavedAt = data.updated_at;
+      if (year) writeWorkspaceCookie(workspaceKey, year);
+      const prefix = opts.autosave ? "Сохранено" : "Сохранено вручную";
+      setCloudStatus("ok", `${prefix} · ${formatStamp(data.updated_at)}`);
+      refreshAdvancedPanel();
     } catch (err) {
-      setCloudStatus("error", `Сеть недоступна или сервер не отвечает: ${err.message}`);
+      setCloudStatus("error", `Ошибка сохранения: сеть недоступна (${err.message})`);
     }
   }
 
-  async function cloudClear() {
-    const code = getAccessCode();
-    if (!code || code.length < ACCESS_CODE_MIN_LEN) {
-      setCloudStatus("error", `Введи код доступа (минимум ${ACCESS_CODE_MIN_LEN} символов), чтобы удалить облачный черновик.`);
+  async function cloudResetWorkspace() {
+    if (!workspaceKey) return;
+    const year = getTaxYear();
+    if (!confirm("Удалить облачный черновик и выпустить новый приватный ключ? Старая приватная ссылка перестанет работать.")) {
       return;
     }
-    const year = Number($("#tax_year").value);
-    if (!confirm(`Удалить облачный черновик для этого кода и года ${year}? Локальная форма останется без изменений.`)) {
-      return;
-    }
-    setCloudStatus("busy", "Удаляю черновик…");
+    setCloudStatus("busy", "Удаляю облачный черновик…");
     try {
-      const url = `/api/draft?access_code=${encodeURIComponent(code)}&tax_year=${encodeURIComponent(year)}`;
-      const res = await fetch(url, { method: "DELETE", headers: { "Accept": "application/json" } });
-      const data = await res.json();
-      if (!res.ok || !data.ok) {
-        setCloudStatus("error", `Не удалось удалить: ${data.error || res.statusText}`);
-        return;
-      }
-      // After deleting the cloud draft, forget the remembered code/year too
-      // so a refresh does not try to auto-load a deleted draft. The form on
-      // screen is untouched.
-      clearRememberCookie();
-      lastAutosaveSig = "";
-      if (data.deleted > 0) {
-        setCloudStatus("ok", "Облачный черновик удалён. Запомненный код/год в этом браузере тоже сброшены.");
+      const url = `/api/draft?access_code=${encodeURIComponent(workspaceKey)}&tax_year=${encodeURIComponent(year)}`;
+      await fetch(url, { method: "DELETE", headers: { "Accept": "application/json" } });
+    } catch (_) {
+      // ignore — proceed with key rotation either way
+    }
+    // Issue a fresh workspace key, clear the form, persist baseline.
+    workspaceKey = generateWorkspaceKey();
+    if (year) writeWorkspaceCookie(workspaceKey, year);
+    lastSavedAt = null;
+    suppressAutosave = true;
+    clearTrips();
+    makeRow();
+    resetTripDayCells();
+    resetInlineCountrySummary();
+    resultsSection.classList.remove("shown");
+    currentResult = null;
+    suppressAutosave = false;
+    lastAutosaveSig = JSON.stringify(buildPayload());
+    setCloudStatus("ok", "Рабочее пространство сброшено. Новый ключ создан, автосохранение продолжит работу.");
+    refreshAdvancedPanel();
+  }
+
+  function buildPrivateLink() {
+    const year = getTaxYear() ?? new Date().getFullYear();
+    const params = new URLSearchParams();
+    params.set("workspace", workspaceKey);
+    params.set("year", String(year));
+    const base = `${location.origin}${location.pathname}`;
+    return `${base}#${params.toString()}`;
+  }
+
+  async function copyPrivateLink() {
+    if (!workspaceKey) return;
+    const link = buildPrivateLink();
+    try {
+      if (navigator.clipboard && window.isSecureContext) {
+        await navigator.clipboard.writeText(link);
       } else {
-        setCloudStatus("info", "В облаке не было черновика для этого кода и года. Запомненный код/год в этом браузере сброшены.");
+        const ta = document.createElement("textarea");
+        ta.value = link;
+        ta.setAttribute("readonly", "");
+        ta.style.position = "fixed";
+        ta.style.left = "-9999px";
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand("copy");
+        ta.remove();
       }
+      setCloudStatus("ok", "Приватная ссылка скопирована. Открой её на другом устройстве — данные подтянутся автоматически. Никому не пересылай.");
     } catch (err) {
-      setCloudStatus("error", `Сеть недоступна или сервер не отвечает: ${err.message}`);
+      setCloudStatus("error", `Не удалось скопировать ссылку: ${err.message}. Скопируй вручную: ${link}`);
     }
   }
 
@@ -973,13 +1040,25 @@
     }
   }
 
-  $("#cloud-load")?.addEventListener("click", cloudLoad);
-  $("#cloud-save")?.addEventListener("click", () => cloudSave());
-  $("#cloud-clear")?.addEventListener("click", cloudClear);
+  $("#cloud-copy-link")?.addEventListener("click", copyPrivateLink);
+  $("#cloud-reset-workspace")?.addEventListener("click", cloudResetWorkspace);
+  $("#cloud-advanced-toggle")?.addEventListener("click", () => {
+    const panel = $("#cloud-advanced");
+    const btn = $("#cloud-advanced-toggle");
+    if (!panel || !btn) return;
+    const open = panel.hasAttribute("hidden");
+    if (open) {
+      panel.removeAttribute("hidden");
+      btn.setAttribute("aria-expanded", "true");
+      refreshAdvancedPanel();
+    } else {
+      panel.setAttribute("hidden", "");
+      btn.setAttribute("aria-expanded", "false");
+    }
+  });
 
   // Autosave triggers for non-trip controls: tax year, top-level selects,
-  // settings checkboxes. Also keep the remember-cookie in sync whenever the
-  // code or tax year change.
+  // settings checkboxes.
   const autosaveSelectors = [
     "#tax_year",
     "#has_cyprus_home",
@@ -1000,37 +1079,39 @@
     el.addEventListener("change", () => scheduleAutosave());
   }
 
-  $("#cloud_access_code")?.addEventListener("input", () => {
-    syncRememberCookieFromUI();
-    scheduleAutosave();
-  });
-  $("#tax_year")?.addEventListener("input", () => syncRememberCookieFromUI());
-  $("#cloud_remember")?.addEventListener("change", () => {
-    if (rememberEnabled()) {
-      syncRememberCookieFromUI();
-    } else {
-      clearRememberCookie();
-    }
-  });
-  $("#cloud_autosave")?.addEventListener("change", () => {
-    if ($("#cloud_autosave").checked) scheduleAutosave();
+  $("#tax_year")?.addEventListener("input", () => {
+    if (workspaceKey && getTaxYear()) writeWorkspaceCookie(workspaceKey, getTaxYear());
+    refreshAdvancedPanel();
   });
 
-  // Initial state: one empty row, then attempt cookie-driven auto-load so a
-  // simple page refresh restores the cloud draft without re-typing the code.
+  // Initial state: one empty row, then bootstrap workspace.
   makeRow();
 
-  (function bootstrapAutoLoad() {
-    const remembered = readRememberCookie();
-    if (!remembered) return;
-    const codeEl = $("#cloud_access_code");
-    const yearEl = $("#tax_year");
-    if (codeEl) codeEl.value = remembered.code;
-    if (yearEl) yearEl.value = String(remembered.year);
-    if ($("#cloud_remember")) $("#cloud_remember").checked = true;
-    if (remembered.code && remembered.code.length >= ACCESS_CODE_MIN_LEN) {
-      setCloudStatus("busy", "Подтягиваю черновик из облака по запомненному коду…");
-      cloudLoad();
+  (function bootstrapWorkspace() {
+    const fromUrl = parseHashWorkspace();
+    if (fromUrl && fromUrl.key && fromUrl.key.length >= 8) {
+      workspaceKey = fromUrl.key;
+      if (fromUrl.year) $("#tax_year").value = String(fromUrl.year);
+      writeWorkspaceCookie(workspaceKey, getTaxYear() || new Date().getFullYear());
+      stripWorkspaceFromUrl();
+      setCloudStatus("busy", "Открываю по приватной ссылке…");
+      cloudLoad({ fromLink: true });
+      return;
     }
+    const remembered = readWorkspaceCookie();
+    if (remembered && remembered.key) {
+      workspaceKey = remembered.key;
+      if (remembered.year) $("#tax_year").value = String(remembered.year);
+      setCloudStatus("busy", "Загружаю последний черновик…");
+      cloudLoad();
+      return;
+    }
+    // First visit on this device with no link — mint a fresh key, persist
+    // cookie, leave form empty, idle state.
+    workspaceKey = generateWorkspaceKey();
+    writeWorkspaceCookie(workspaceKey, getTaxYear() || new Date().getFullYear());
+    lastAutosaveSig = JSON.stringify(buildPayload());
+    setCloudStatus("idle", "Автосохранение включено. Начни заполнять — данные уйдут в облако автоматически.");
+    refreshAdvancedPanel();
   })();
 })();

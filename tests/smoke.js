@@ -110,28 +110,53 @@ const server = app.listen(0, "127.0.0.1", async () => {
 
     const indexRes = await fetch(`${base}/`);
     const indexText = await indexRes.text();
-    check("/ serves index.html from public/", indexRes.status === 200 && indexText.includes("Облачное хранение"));
+    check("/ serves index.html from public/", indexRes.status === 200);
     check(
-      "index advertises remember-code-and-year cookie toggle",
-      indexText.includes("Запомнить код и год в этом браузере"),
+      "index advertises auto-save status row in Russian",
+      indexText.includes("Автосохранение включено"),
     );
     check(
-      "index says trip data lives in cloud, not browser",
-      indexText.includes("Сами данные поездок не лежат в этом браузере"),
+      "index has private-link copy action",
+      indexText.includes("Скопировать приватную ссылку"),
+    );
+    check(
+      "index has cloud explainer about private link",
+      indexText.includes("Ссылку никому не пересылай"),
+    );
+    check(
+      "manual access-code input is removed from the UI",
+      !indexText.includes('id="cloud_access_code"'),
     );
 
     const appJsText = await (await fetch(`${base}/app.js`)).text();
+    // Match actual API usage (foo.x, foo[, foo(, foo=) — not comments.
     check(
       "frontend does NOT use localStorage/sessionStorage/indexedDB",
-      !/\b(localStorage|sessionStorage|indexedDB)\s*\./.test(appJsText),
+      !/\b(localStorage|sessionStorage|indexedDB)\s*(?:\.|\[|\()/.test(appJsText),
     );
     check(
-      "frontend uses cookie-based remember store",
-      appJsText.includes("REMEMBER_COOKIE") && appJsText.includes("document.cookie"),
+      "frontend auto-generates a workspace key with crypto.getRandomValues",
+      appJsText.includes("generateWorkspaceKey") && appJsText.includes("crypto.getRandomValues"),
+    );
+    check(
+      "frontend uses cookie-based workspace store (not localStorage)",
+      appJsText.includes("WORKSPACE_COOKIE") && appJsText.includes("document.cookie"),
     );
     check(
       "frontend has debounced cloud autosave",
       appJsText.includes("scheduleAutosave") && appJsText.includes("AUTOSAVE_DEBOUNCE_MS"),
+    );
+    check(
+      "frontend parses workspace from URL hash for cross-device handoff",
+      appJsText.includes("parseHashWorkspace") && appJsText.includes("workspace"),
+    );
+    check(
+      "frontend strips workspace key from the visible URL after import",
+      appJsText.includes("stripWorkspaceFromUrl"),
+    );
+    check(
+      "frontend builds a private link with workspace + year in hash",
+      appJsText.includes("buildPrivateLink"),
     );
 
     const stylesRes = await fetch(`${base}/styles.css`);

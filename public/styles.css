@@ -1086,32 +1086,44 @@ table.trips td input:focus, table.trips td select:focus {
   }
 }
 
-/* -------- Cloud sync section -------- */
-.cloud-sync .cloud-grid { align-items: end; }
-.cloud-actions-field label { color: var(--text-muted); font-weight: 600; font-size: 12px; text-transform: uppercase; letter-spacing: 0.08em; }
-.cloud-actions { display: flex; flex-wrap: wrap; gap: 8px; }
-.cloud-actions .btn { flex: 0 1 auto; }
-.cloud-status {
+/* -------- Cloud sync (auto) section -------- */
+.cloud-sync { padding: 18px 22px; }
+.cloud-bar {
   display: flex;
   align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+  justify-content: space-between;
+}
+.cloud-bar-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+.cloud-status {
+  display: inline-flex;
+  align-items: center;
   gap: 10px;
-  margin-top: 14px;
-  padding: 10px 14px;
-  border-radius: 10px;
+  padding: 8px 14px;
+  border-radius: 999px;
   border: 1px solid rgba(11, 111, 120, 0.18);
   background: var(--accent-soft);
   color: var(--accent-ink);
   font-size: 13px;
-  line-height: 1.4;
+  font-weight: 600;
+  line-height: 1.3;
+  min-height: 36px;
 }
 .cloud-status .cloud-status-dot {
-  width: 10px;
-  height: 10px;
+  width: 9px;
+  height: 9px;
   border-radius: 50%;
   background: var(--accent);
   flex-shrink: 0;
   box-shadow: 0 0 0 3px rgba(11, 111, 120, 0.15);
 }
+.cloud-status.status-idle { background: var(--accent-soft); }
 .cloud-status.status-busy { background: var(--accent-soft); }
 .cloud-status.status-busy .cloud-status-dot { background: var(--accent); animation: cloud-pulse 1.2s ease-in-out infinite; }
 .cloud-status.status-ok { background: var(--success-soft); color: #1b4d2e; border-color: rgba(45, 122, 75, 0.25); }
@@ -1120,7 +1132,57 @@ table.trips td input:focus, table.trips td select:focus {
 .cloud-status.status-info .cloud-status-dot { background: var(--text-muted); }
 .cloud-status.status-error { background: var(--danger-soft); color: #6b1f17; border-color: rgba(167, 58, 47, 0.3); }
 .cloud-status.status-error .cloud-status-dot { background: var(--danger); }
-.cloud-autosave { margin-top: 14px; }
+
+.cloud-link-btn { font-weight: 600; }
+
+.cloud-explain {
+  margin: 12px 0 0;
+  color: var(--text-muted);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.cloud-advanced {
+  margin-top: 14px;
+  padding: 14px 16px;
+  background: rgba(255, 252, 246, 0.72);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+.cloud-advanced[hidden] { display: none; }
+.cloud-advanced-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 14px;
+}
+.cloud-advanced-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.cloud-advanced-label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+.cloud-advanced-value {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text);
+}
+.cloud-advanced-hint {
+  font-size: 12px;
+  color: var(--text-faint);
+  line-height: 1.4;
+}
+.cloud-advanced-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin: 4px 0 2px;
+}
 
 @keyframes cloud-pulse {
   0%, 100% { transform: scale(1); opacity: 1; }
@@ -1128,6 +1190,8 @@ table.trips td input:focus, table.trips td select:focus {
 }
 
 @media (max-width: 720px) {
-  .cloud-actions { flex-direction: column; }
-  .cloud-actions .btn { width: 100%; justify-content: center; }
+  .cloud-bar { flex-direction: column; align-items: stretch; }
+  .cloud-bar-actions { justify-content: stretch; }
+  .cloud-bar-actions .btn { flex: 1 1 auto; justify-content: center; }
+  .cloud-status { justify-content: center; }
 }
