@@ -722,6 +722,8 @@
   $("#print-report").addEventListener("click", printReport);
 
   // -------- Cloud sync (no browser storage) --------
+  const ACCESS_CODE_MIN_LEN = 8;
+
   function getAccessCode() {
     const el = $("#cloud_access_code");
     return el ? el.value.trim() : "";
@@ -772,8 +774,8 @@
 
   async function cloudLoad() {
     const code = getAccessCode();
-    if (!code || code.length < 4) {
-      setCloudStatus("error", "Введи код доступа (минимум 4 символа), чтобы загрузить данные.");
+    if (!code || code.length < ACCESS_CODE_MIN_LEN) {
+      setCloudStatus("error", `Введи код доступа (минимум ${ACCESS_CODE_MIN_LEN} символов), чтобы загрузить данные.`);
       return;
     }
     const year = Number($("#tax_year").value);
@@ -806,9 +808,9 @@
 
   async function cloudSave(opts = {}) {
     const code = getAccessCode();
-    if (!code || code.length < 4) {
+    if (!code || code.length < ACCESS_CODE_MIN_LEN) {
       if (opts.silentIfNoCode) return;
-      setCloudStatus("error", "Введи код доступа (минимум 4 символа), чтобы сохранить данные.");
+      setCloudStatus("error", `Введи код доступа (минимум ${ACCESS_CODE_MIN_LEN} символов), чтобы сохранить данные.`);
       return;
     }
     const payload = buildPayload();
@@ -832,8 +834,8 @@
 
   async function cloudClear() {
     const code = getAccessCode();
-    if (!code || code.length < 4) {
-      setCloudStatus("error", "Введи код доступа, чтобы удалить облачный черновик.");
+    if (!code || code.length < ACCESS_CODE_MIN_LEN) {
+      setCloudStatus("error", `Введи код доступа (минимум ${ACCESS_CODE_MIN_LEN} символов), чтобы удалить облачный черновик.`);
       return;
     }
     const year = Number($("#tax_year").value);

@@ -6,7 +6,10 @@ JavaScript — no LLM is used for calculation.
 
 ## Architecture
 
-- **Frontend** — vanilla HTML/CSS/JS (`index.html`, `styles.css`, `app.js`, `calc.js`).
+- **Frontend** — vanilla HTML/CSS/JS in `public/` (`index.html`, `styles.css`,
+  `app.js`, `calc.js`). The server serves **only** this directory, never the
+  project root, so `server.js`, `package.json`, and `node_modules/` are not
+  publicly reachable.
 - **Backend** — Node.js + Express server (`server.js`) that serves the static
   assets and exposes a small JSON API backed by SQLite (`data.db`).
 - **Cloud storage** — one draft per `(access_code_hash, tax_year)`. Access codes
@@ -19,12 +22,13 @@ autosave enabled and an access code entered).
 
 ## Files
 
-- `index.html` — Russian UI: cloud sync, settings, trip rows, KPI cards,
+- `public/index.html` — Russian UI: cloud sync, settings, trip rows, KPI cards,
   country breakdown, warnings, disclaimer, source links.
-- `calc.js` — deterministic calculation engine.
-- `app.js` — UI controller, sample loaders, render pipeline, cloud sync client.
-- `styles.css` — Mediterranean limestone-and-teal palette, mobile-responsive.
-- `server.js` — Express + better-sqlite3 server with the `/api/*` endpoints.
+- `public/calc.js` — deterministic calculation engine.
+- `public/app.js` — UI controller, sample loaders, render pipeline, cloud sync client.
+- `public/styles.css` — Mediterranean limestone-and-teal palette, mobile-responsive.
+- `server.js` — Express + better-sqlite3 server with the `/api/*` endpoints,
+  rate limiting, and `public/` as the only static root.
 - `tests/smoke.js` — Node smoke test exercising the API end-to-end against a
   temporary database.
 
@@ -44,8 +48,13 @@ All requests/responses are JSON.
 - `DELETE /api/draft?access_code=...&tax_year=...` →
   `{ ok: true, deleted }`.
 
-The access code must be between 4 and 128 characters. Payload size is capped
-at 256 KB and trips at 500 entries to keep writes well-formed.
+The access code must be between **8 and 128 characters**. Payload size is
+capped at 256 KB and trips at 500 entries to keep writes well-formed.
+
+`/api/*` is rate-limited to ~60 requests per minute per client IP via
+`express-rate-limit`. Tune with `API_RATE_LIMIT_MAX` /
+`API_RATE_LIMIT_WINDOW_MS`, or set `API_RATE_LIMIT_DISABLED=1` (the smoke
+test sets this so its back-to-back calls do not flake).
 
 ## Run locally
 
@@ -83,6 +92,10 @@ container host:
 4. Mount or otherwise persist `data.db` (or set `DB_PATH` to a path on a
    persistent volume), otherwise drafts are lost when the container is
    recycled.
+5. If the host wants a `dist_path` for the static bundle, point it at
+   `public/` — that is the only directory the running server exposes. The
+   legacy `dist/public/` copy is kept in sync for tooling that still expects
+   it.
 
 GitHub Pages cannot host this app any more, because it requires a Node
 process to serve the API.
@@ -90,7 +103,7 @@ process to serve the API.
 ## Cloud usage from the UI
 
 1. Type an access code in **«Облачное хранение»** (this is your personal
-   secret; pick something only you know).
+   secret; pick something at least 8 characters long that only you know).
 2. Press **«Сохранить в облако»** to store the current trips, settings and
    eligibility answers under `(your code, tax year)`.
 3. From any other device, type the same code + tax year and press
@@ -114,8 +127,9 @@ process to serve the API.
   calculation always uses the ISO value.
 - Same-day departure-and-return-to-Cyprus detection works only between
   separate trip rows; it does not model intra-row trips.
-- Access codes are hashed but not rate-limited. Pick a long, unique code; do
-  not share short common values like `1234`.
+- Access codes are SHA-256 hashed; `/api/*` is per-IP rate-limited. Pick a
+  long, unique code (minimum 8 characters); avoid short common values like
+  `password` or `denis123`.
 
 ## Legal disclaimer
 

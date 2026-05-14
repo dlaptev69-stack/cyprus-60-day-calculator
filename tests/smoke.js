@@ -11,6 +11,7 @@ const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "cyprus-60-test-"));
 const dbFile = path.join(tmpDir, "data.db");
 process.env.DB_PATH = dbFile;
 process.env.PORT = "0"; // ask OS for a free port
+process.env.API_RATE_LIMIT_DISABLED = "1"; // don't throttle back-to-back smoke calls
 
 const { app } = require("../server.js");
 
@@ -92,6 +93,38 @@ const server = app.listen(0, "127.0.0.1", async () => {
       body: JSON.stringify({ access_code: "ab", payload }),
     });
     check("validation rejects too-short access_code", tooShort.status === 400);
+
+    const sevenChar = await fetch(`${base}/api/draft`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ access_code: "1234567", payload }),
+    });
+    check("validation rejects 7-char access_code (new 8-char minimum)", sevenChar.status === 400);
+
+    const eightChar = await fetch(`${base}/api/draft`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ access_code: "12345678", payload }),
+    });
+    check("validation accepts exactly 8-char access_code", eightChar.status === 200);
+
+    const indexRes = await fetch(`${base}/`);
+    const indexText = await indexRes.text();
+    check("/ serves index.html from public/", indexRes.status === 200 && indexText.includes("Облачное хранение"));
+
+    const stylesRes = await fetch(`${base}/styles.css`);
+    check("/styles.css served (200)", stylesRes.status === 200);
+    const appRes = await fetch(`${base}/app.js`);
+    check("/app.js served (200)", appRes.status === 200);
+    const calcRes = await fetch(`${base}/calc.js`);
+    check("/calc.js served (200)", calcRes.status === 200);
+
+    const serverJs = await fetch(`${base}/server.js`);
+    check("/server.js is NOT publicly served", serverJs.status === 404);
+    const pkg = await fetch(`${base}/package.json`);
+    check("/package.json is NOT publicly served", pkg.status === 404);
+    const nodeMod = await fetch(`${base}/node_modules/express/package.json`);
+    check("/node_modules/* is NOT publicly served", nodeMod.status === 404);
 
     const del = await fetch(
       `${base}/api/draft?access_code=${encodeURIComponent(code)}&tax_year=${year}`,

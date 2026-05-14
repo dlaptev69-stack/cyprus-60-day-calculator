@@ -6,13 +6,22 @@
 const path = require("path");
 const crypto = require("crypto");
 const express = require("express");
+const rateLimit = require("express-rate-limit");
 const Database = require("better-sqlite3");
 
 const PORT = Number(process.env.PORT) || 5050;
 const HOST = process.env.HOST || "0.0.0.0";
 const DB_PATH = process.env.DB_PATH || path.join(__dirname, "data.db");
+const PUBLIC_DIR = path.join(__dirname, "public");
 const MAX_PAYLOAD_BYTES = 256 * 1024; // generous upper bound for trip lists
 const MAX_TRIPS = 500;
+const ACCESS_CODE_MIN = 8;
+const ACCESS_CODE_MAX = 128;
+// Per-IP API rate limit: ~60 req/min. Disabled in tests so the smoke suite
+// can fire its requests back-to-back without flaking.
+const API_RATE_LIMIT_MAX = Number(process.env.API_RATE_LIMIT_MAX) || 60;
+const API_RATE_LIMIT_WINDOW_MS = Number(process.env.API_RATE_LIMIT_WINDOW_MS) || 60 * 1000;
+const API_RATE_LIMIT_DISABLED = process.env.API_RATE_LIMIT_DISABLED === "1";
 
 const db = new Database(DB_PATH);
 db.pragma("journal_mode = WAL");
@@ -48,7 +57,7 @@ function hashCode(code) {
 function normalizeAccessCode(raw) {
   if (typeof raw !== "string") return null;
   const trimmed = raw.trim();
-  if (trimmed.length < 4 || trimmed.length > 128) return null;
+  if (trimmed.length < ACCESS_CODE_MIN || trimmed.length > ACCESS_CODE_MAX) return null;
   return trimmed;
 }
 
@@ -112,6 +121,7 @@ function validatePayload(p) {
 }
 
 const app = express();
+app.disable("x-powered-by");
 app.use(express.json({ limit: MAX_PAYLOAD_BYTES }));
 app.use((err, req, res, next) => {
   if (err && err.type === "entity.too.large") {
@@ -120,6 +130,17 @@ app.use((err, req, res, next) => {
   next(err);
 });
 
+if (!API_RATE_LIMIT_DISABLED) {
+  const apiLimiter = rateLimit({
+    windowMs: API_RATE_LIMIT_WINDOW_MS,
+    limit: API_RATE_LIMIT_MAX,
+    standardHeaders: "draft-7",
+    legacyHeaders: false,
+    message: { ok: false, error: "rate limit exceeded, try again shortly" },
+  });
+  app.use("/api/", apiLimiter);
+}
+
 app.get("/api/health", (_req, res) => {
   res.json({ ok: true, service: "cyprus-60-day-calculator", db: path.basename(DB_PATH) });
 });
@@ -127,7 +148,7 @@ app.get("/api/health", (_req, res) => {
 app.get("/api/draft", (req, res) => {
   const code = normalizeAccessCode(req.query.access_code);
   const year = normalizeTaxYear(req.query.tax_year);
-  if (!code) return res.status(400).json({ ok: false, error: "invalid access_code" });
+  if (!code) return res.status(400).json({ ok: false, error: `invalid access_code (must be ${ACCESS_CODE_MIN}–${ACCESS_CODE_MAX} chars)` });
   if (year === null) return res.status(400).json({ ok: false, error: "invalid tax_year" });
   const row = selectStmt.get(hashCode(code), year);
   if (!row) return res.json({ ok: true, found: false });
@@ -142,7 +163,7 @@ app.get("/api/draft", (req, res) => {
 
 app.post("/api/draft", (req, res) => {
   const code = normalizeAccessCode(req.body && req.body.access_code);
-  if (!code) return res.status(400).json({ ok: false, error: "invalid access_code" });
+  if (!code) return res.status(400).json({ ok: false, error: `invalid access_code (must be ${ACCESS_CODE_MIN}–${ACCESS_CODE_MAX} chars)` });
   const payload = req.body && req.body.payload;
   const err = validatePayload(payload);
   if (err) return res.status(400).json({ ok: false, error: err });
@@ -160,17 +181,22 @@ app.post("/api/draft", (req, res) => {
 app.delete("/api/draft", (req, res) => {
   const code = normalizeAccessCode(req.query.access_code || (req.body && req.body.access_code));
   const year = normalizeTaxYear(req.query.tax_year || (req.body && req.body.tax_year));
-  if (!code) return res.status(400).json({ ok: false, error: "invalid access_code" });
+  if (!code) return res.status(400).json({ ok: false, error: `invalid access_code (must be ${ACCESS_CODE_MIN}–${ACCESS_CODE_MAX} chars)` });
   if (year === null) return res.status(400).json({ ok: false, error: "invalid tax_year" });
   const info = deleteStmt.run(hashCode(code), year);
   res.json({ ok: true, deleted: info.changes });
 });
 
-app.use(express.static(__dirname, { extensions: ["html"] }));
+app.use(express.static(PUBLIC_DIR, {
+  extensions: ["html"],
+  index: "index.html",
+  dotfiles: "ignore",
+}));
 
 if (require.main === module) {
   app.listen(PORT, HOST, () => {
     console.log(`Cyprus 60-day calculator listening on http://${HOST}:${PORT}`);
+    console.log(`Static root: ${PUBLIC_DIR}`);
     console.log(`SQLite database: ${DB_PATH}`);
   });
 }

@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Калькулятор Cyprus 60-day rule | налоговое резидентство Кипра</title>
+<meta name="description" content="Расчётный помощник по правилу 60 дней для налогового резидентства Кипра. Не является юридическим или налоговым заключением." />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Cormorant+Garamond:wght@500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css" />
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%230E5E66'/%3E%3Cpath d='M10 8h6.5c4.2 0 7.5 3.2 7.5 8s-3.3 8-7.5 8H10V8zm4 4v8h2.2c2.1 0 3.8-1.5 3.8-4s-1.7-4-3.8-4H14z' fill='white'/%3E%3C/svg%3E">
+</head>
+<body>
+<div class="app">
+
+  <!-- Header -->
+  <header class="site-header">
+    <div class="brand">
+      <div class="brand-mark" aria-hidden="true">
+        <!-- Stylized mark: D inscribed on a stone tablet, evoking limestone + civic seal -->
+        <svg viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <rect x="4" y="4" width="24" height="24" rx="3" stroke="currentColor" stroke-width="1.5" opacity="0.4"/>
+          <path d="M11 9.5H16.5C20.7 9.5 23.5 12.1 23.5 16C23.5 19.9 20.7 22.5 16.5 22.5H11V9.5Z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+        </svg>
+      </div>
+      <div class="brand-text">
+        <span class="brand-name">Denis</span>
+        <span class="brand-sub">Cyprus 60-day rule</span>
+      </div>
+    </div>
+    <div class="header-links">
+      <a href="#disclaimer">Дисклеймер</a>
+      <a href="#sources">Источники</a>
+    </div>
+  </header>
+
+  <!-- Hero -->
+  <section class="hero">
+    <div class="hero-copy">
+      <div class="eyebrow">Cyprus residency desk</div>
+      <h1>Cyprus 60-Day Calculator</h1>
+      <p>Private residency desk for checking Cyprus presence days, country breakdown and key tax-residency risk flags.</p>
+      <p class="hero-note">Расчётный помощник, не юридическое или налоговое заключение.</p>
+      <div class="hero-pills" aria-label="Ключевые особенности">
+        <span>Правило 60 дней</span>
+        <span>Разбивка по странам</span>
+        <span>PDF-отчёт</span>
+      </div>
+    </div>
+    <div class="hero-visual" aria-hidden="true">
+      <div class="sun-orb"></div>
+      <div class="cyprus-motif">
+        <svg viewBox="0 0 320 220" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path class="island" d="M88 112C102 91 130 80 157 84C181 88 193 101 211 103C232 105 248 91 264 101C279 110 278 132 262 143C245 155 223 148 203 152C178 157 162 178 134 172C109 166 96 148 82 145C67 142 50 151 42 140C33 127 71 123 88 112Z"/>
+          <path class="wave wave-a" d="M48 66C76 48 106 48 136 66C166 84 194 84 224 66C246 53 268 50 292 58"/>
+          <path class="wave wave-b" d="M34 174C63 158 92 159 121 176C151 193 181 193 211 175C235 161 260 158 286 166"/>
+          <circle class="dot dot-a" cx="254" cy="54" r="7"/>
+          <circle class="dot dot-b" cx="62" cy="162" r="5"/>
+        </svg>
+      </div>
+      <div class="residency-card">
+        <div class="mini-map">
+          <span class="coast coast-a"></span>
+          <span class="coast coast-b"></span>
+          <span class="coast coast-c"></span>
+        </div>
+        <div class="residency-card-content">
+          <span class="card-kicker">Denis</span>
+          <strong>60-day rule</strong>
+          <small>Cyprus presence threshold</small>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Sample scenarios -->
+  <section class="card" aria-labelledby="samples-h">
+    <h3 id="samples-h">Тестовые сценарии</h3>
+    <p class="desc">Загрузи готовый пример, чтобы посмотреть, как работает расчёт. Любой сценарий можно отредактировать дальше.</p>
+    <div class="samples" data-testid="samples-bar">
+      <button type="button" class="sample-btn" data-sample="exactly_60" data-testid="sample-exactly-60">Ровно 60 дней на Кипре</button>
+      <button type="button" class="sample-btn" data-sample="fifty_nine" data-testid="sample-fifty-nine">59 дней на Кипре</button>
+      <button type="button" class="sample-btn" data-sample="other_over_183" data-testid="sample-other-over-183">Другая страна свыше 183 дней</button>
+      <button type="button" class="sample-btn" data-sample="transit_days" data-testid="sample-transit-days">Транзитные дни</button>
+      <button type="button" class="sample-btn" data-sample="multi_country" data-testid="sample-multi-country">Несколько стран</button>
+      <button type="button" class="sample-btn sample-clear" data-sample="clear" data-testid="sample-clear">Очистить всё</button>
+    </div>
+  </section>
+
+  <!-- Top-level inputs -->
+  <section class="card" aria-labelledby="basic-h">
+    <h2 id="basic-h">Базовые условия</h2>
+    <p class="desc">Эти ответы влияют на предварительный статус и список вопросов для уточнения у налогового консультанта.</p>
+    <div class="grid grid-2">
+      <div class="field">
+        <label for="tax_year">Налоговый год</label>
+        <input id="tax_year" type="number" class="input" min="1900" max="2200" step="1" value="2026" data-testid="input-tax-year" />
+        <span class="hint">Расчёт ограничен календарным годом.</span>
+      </div>
+      <div class="field">
+        <label for="has_cyprus_home">Дом на Кипре (собственность или долгосрочная аренда)</label>
+        <select id="has_cyprus_home" class="input" data-testid="select-cyprus-home">
+          <option value="yes">да</option>
+          <option value="no">нет</option>
+          <option value="unknown">не знаю</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="has_cyprus_business_or_employment_or_directorship">Бизнес, работа или директорство на Кипре</label>
+        <select id="has_cyprus_business_or_employment_or_directorship" class="input" data-testid="select-cyprus-business">
+          <option value="yes">да</option>
+          <option value="no">нет</option>
+          <option value="unknown">не знаю</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="possible_tax_resident_elsewhere">Возможное налоговое резидентство другой страны</label>
+        <select id="possible_tax_resident_elsewhere" class="input" data-testid="select-tax-resident-elsewhere">
+          <option value="no">нет</option>
+          <option value="yes">да</option>
+          <option value="unknown">не знаю</option>
+        </select>
+      </div>
+    </div>
+  </section>
+
+  <!-- Settings -->
+  <section class="card" aria-labelledby="settings-h">
+    <h2 id="settings-h">Настройки подсчёта дней</h2>
+    <p class="desc">Значения по умолчанию заложены на основе PwC Worldwide Tax Summaries и Constantinos Markou &amp; Co. Меняй только при осознанной причине.</p>
+    <div class="settings-list" data-testid="settings-list">
+      <label class="toggle">
+        <input type="checkbox" id="set_arrival_cyprus" checked data-testid="toggle-arrival-cyprus" />
+        <span class="toggle-label"><b>День прибытия на Кипр считается днём на Кипре</b><span class="toggle-desc">По умолчанию включено.</span></span>
+      </label>
+      <label class="toggle">
+        <input type="checkbox" id="set_departure_cyprus" data-testid="toggle-departure-cyprus" />
+        <span class="toggle-label"><b>День выезда с Кипра считается днём на Кипре</b><span class="toggle-desc">По умолчанию выключено.</span></span>
+      </label>
+      <label class="toggle">
+        <input type="checkbox" id="set_same_day_arr_dep_cyprus" checked data-testid="toggle-same-day-arr-dep-cyprus" />
+        <span class="toggle-label"><b>Прибытие и выезд с Кипра в один день — день на Кипре</b><span class="toggle-desc">По умолчанию включено.</span></span>
+      </label>
+      <label class="toggle">
+        <input type="checkbox" id="set_same_day_dep_ret_cyprus" data-testid="toggle-same-day-dep-ret-cyprus" />
+        <span class="toggle-label"><b>Выезд и возвращение на Кипр в один день — день на Кипре</b><span class="toggle-desc">По умолчанию выключено.</span></span>
+      </label>
+      <label class="toggle">
+        <input type="checkbox" id="set_transit_cyprus" data-testid="toggle-transit-cyprus" />
+        <span class="toggle-label"><b>Транзитный день на Кипре засчитывается</b><span class="toggle-desc">По умолчанию выключено: транзит не считается днём пребывания.</span></span>
+      </label>
+      <label class="toggle">
+        <input type="checkbox" id="set_arrival_other" checked data-testid="toggle-arrival-other" />
+        <span class="toggle-label"><b>День прибытия в другую страну считается днём в этой стране</b><span class="toggle-desc">По умолчанию включено.</span></span>
+      </label>
+      <label class="toggle">
+        <input type="checkbox" id="set_departure_other" data-testid="toggle-departure-other" />
+        <span class="toggle-label"><b>День выезда из другой страны считается днём в этой стране</b><span class="toggle-desc">По умолчанию выключено.</span></span>
+      </label>
+    </div>
+  </section>
+
+  <!-- Cloud sync -->
+  <section class="card cloud-sync" aria-labelledby="cloud-h" data-testid="cloud-sync">
+    <h2 id="cloud-h">Облачное хранение</h2>
+    <p class="desc">Введи свой код доступа — это твой персональный «ключ» к данным. По связке «код + налоговый год» поездки и настройки сохраняются в облаке и подгружаются с любого устройства. Браузерное хранилище не используется.</p>
+    <div class="grid grid-2 cloud-grid">
+      <div class="field">
+        <label for="cloud_access_code">Код доступа</label>
+        <input id="cloud_access_code" type="text" class="input" autocomplete="off" spellcheck="false"
+          placeholder="например: denis-2026-secret"
+          data-testid="input-access-code" />
+        <span class="hint">Минимум 8 символов. Запомни его — без кода данные не открыть.</span>
+      </div>
+      <div class="field cloud-actions-field">
+        <label>Действия с облаком</label>
+        <div class="cloud-actions">
+          <button type="button" class="btn" id="cloud-load" data-testid="button-cloud-load">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="M7 10l5 5 5-5"/><path d="M5 21h14"/></svg>
+            Загрузить из облака
+          </button>
+          <button type="button" class="btn btn-primary" id="cloud-save" data-testid="button-cloud-save">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><path d="M17 21v-8H7v8"/><path d="M7 3v5h8"/></svg>
+            Сохранить в облако
+          </button>
+          <button type="button" class="btn btn-ghost" id="cloud-clear" data-testid="button-cloud-clear">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
+            Удалить черновик
+          </button>
+        </div>
+      </div>
+    </div>
+    <div class="cloud-status" id="cloud-status" data-testid="cloud-status" aria-live="polite">
+      <span class="cloud-status-dot" aria-hidden="true"></span>
+      <span class="cloud-status-text">Облако ещё не использовалось в этой сессии.</span>
+    </div>
+    <label class="toggle cloud-autosave">
+      <input type="checkbox" id="cloud_autosave" checked data-testid="toggle-cloud-autosave" />
+      <span class="toggle-label"><b>Автосохранение в облако после нажатия «Рассчитать»</b><span class="toggle-desc">Данные уходят на сервер сразу после расчёта, если код доступа заполнен.</span></span>
+    </label>
+  </section>
+
+  <!-- Trips -->
+  <section class="card" aria-labelledby="trips-h">
+    <h2 id="trips-h">Поездки</h2>
+    <p class="desc">Указывай каждую поездку отдельной строкой. Страны на русском или английском допустимы — например «Кипр», «Cyprus», «Russia», «ОАЭ».</p>
+    <div class="trips-table-wrap">
+      <table class="trips" data-testid="trips-table">
+        <thead>
+          <tr>
+            <th class="col-country">Страна</th>
+            <th class="col-date">Дата въезда</th>
+            <th class="col-date">Дата выезда</th>
+            <th class="col-type">Тип дня</th>
+            <th class="col-days">Количество дней</th>
+            <th>Комментарий</th>
+            <th class="col-actions"><span class="sr-only">Действия</span></th>
+          </tr>
+        </thead>
+        <tbody id="trips-body" data-testid="trips-body">
+          <!-- Rows injected by JS -->
+        </tbody>
+      </table>
+    </div>
+    <div class="btn-bar">
+      <button type="button" class="btn" id="add-trip" data-testid="button-add-trip">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14" stroke-linecap="round"/></svg>
+        Добавить поездку
+      </button>
+      <span class="spacer"></span>
+      <button type="button" class="btn btn-primary" id="calculate" data-testid="button-calculate">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 12 L10 18 L20 6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        Рассчитать
+      </button>
+    </div>
+    <div class="inline-country-summary" id="inline-country-summary" data-testid="inline-country-summary">
+      <div class="inline-country-summary-head">
+        <h3>Страны и дни</h3>
+        <span>Обновляется после нажатия «Рассчитать»</span>
+      </div>
+      <div class="country-chips" id="inline-country-chips" data-testid="inline-country-chips">
+        <span class="empty-chip">Пока нет расчёта</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- Results -->
+  <section class="results" id="results" data-testid="results-section" aria-live="polite">
+
+    <!-- KPI grid -->
+    <div class="kpis" data-testid="kpis">
+      <div class="kpi accent">
+        <p class="kpi-label">Дней на Кипре</p>
+        <div class="kpi-value" data-testid="kpi-cyprus-days">—</div>
+        <div class="kpi-sub" data-testid="kpi-cyprus-days-sub">из ≥ 60 нужных</div>
+      </div>
+      <div class="kpi">
+        <p class="kpi-label">Минимум 60 дней</p>
+        <div class="kpi-value" data-testid="kpi-cyprus-60">—</div>
+        <div class="kpi-sub">условие правила 60 дней</div>
+      </div>
+      <div class="kpi">
+        <p class="kpi-label">Более 183 дней на Кипре</p>
+        <div class="kpi-value" data-testid="kpi-cyprus-183">—</div>
+        <div class="kpi-sub">альтернативный путь резидентства</div>
+      </div>
+      <div class="kpi">
+        <p class="kpi-label">Другая страна &gt; 183</p>
+        <div class="kpi-value" data-testid="kpi-other-183">—</div>
+        <div class="kpi-sub" data-testid="kpi-max-other-sub">страна с максимумом дней — нет</div>
+      </div>
+    </div>
+
+    <!-- Status card -->
+    <div class="status-card review" id="status-card" data-testid="status-card">
+      <div class="status-dot"></div>
+      <div>
+        <p class="status-title" data-testid="status-title">Предварительный статус</p>
+        <p class="status-desc" data-testid="status-desc">Запусти расчёт, чтобы увидеть оценку.</p>
+        <span class="status-tag" data-testid="status-tag">—</span>
+      </div>
+    </div>
+
+    <!-- Country breakdown -->
+    <section class="card" aria-labelledby="breakdown-h">
+      <h2 id="breakdown-h">Разбивка по странам</h2>
+      <p class="desc">Дни считаются по выбранным настройкам. Строка с Кипром выделена; страны со свыше 183 днями подсвечены как риск.</p>
+      <div class="trips-table-wrap">
+        <table class="country-table" data-testid="country-table">
+          <thead>
+            <tr>
+              <th>Страна</th>
+              <th class="num">Засчитано дней</th>
+              <th>Периоды</th>
+            </tr>
+          </thead>
+          <tbody id="country-body" data-testid="country-body"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- Warnings -->
+    <section class="card" aria-labelledby="warnings-h">
+      <h2 id="warnings-h">Предупреждения и данные для уточнения</h2>
+      <p class="desc">Эти пункты не обязательно ошибки. Это сигналы, которые стоит проговорить с налоговым консультантом или подтвердить документами.</p>
+      <ul class="warning-list" id="warnings-list" data-testid="warnings-list"></ul>
+    </section>
+
+    <!-- Consultant report -->
+    <section class="card report-card" aria-labelledby="report-h" data-testid="consultant-report-card">
+      <div class="report-head">
+        <div>
+          <h2 id="report-h">Отчёт для налогового консультанта</h2>
+          <p class="desc">Строгий расчётный working paper по текущему сценарию. Для PDF нажми «Печать / PDF» и выбери «Save as PDF» или «Сохранить как PDF» в браузере.</p>
+        </div>
+        <div class="report-actions">
+          <button type="button" class="btn" id="copy-report" data-testid="button-copy-report">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 8h11v11H8z"/><path d="M5 16H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h11a1 1 0 0 1 1 1v1"/></svg>
+            Копировать отчёт
+          </button>
+          <button type="button" class="btn btn-primary" id="print-report" data-testid="button-print-report">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9V3h12v6"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><path d="M6 14h12v7H6z"/></svg>
+            Печать / PDF
+          </button>
+        </div>
+      </div>
+      <div class="report-meta" aria-label="Параметры отчёта">
+        <span><b>Document type</b> Tax residency calculation memo</span>
+        <span><b>Method</b> Deterministic day count</span>
+        <span><b>Status</b> Preliminary, adviser review required</span>
+      </div>
+      <div class="copy-state" id="copy-state" data-testid="copy-state" aria-live="polite"></div>
+      <pre class="report-text" id="consultant-report" data-testid="consultant-report">Запусти расчёт, чтобы сформировать отчёт.</pre>
+    </section>
+
+  </section>
+
+  <!-- Disclaimer -->
+  <section class="disclaimer" id="disclaimer" data-testid="disclaimer">
+    <strong>Дисклеймер.</strong> Этот инструмент — расчётный помощник и чек-лист. Он не является юридическим или налоговым заключением и не заменяет консультацию у квалифицированного налогового консультанта или юриста на Кипре. Все статусы носят предварительный характер. Финальное решение по налоговому резидентству принимает Tax Department Республики Кипр на основании первичных документов: паспорт со штампами, посадочные талоны, договоры аренды или собственности, подтверждение работы или директорства.
+    <div class="sources" id="sources">
+      <strong>Источники по правилу подсчёта дней:</strong>
+      <a href="https://taxsummaries.pwc.com/cyprus/individual/residence" target="_blank" rel="noopener">PwC Worldwide Tax Summaries — Cyprus, Individual Residence</a> ·
+      <a href="https://www.cmarkou.com/tax/cyprus-tax-residency/" target="_blank" rel="noopener">Constantinos Markou &amp; Co — Cyprus Tax Residency</a>
+    </div>
+  </section>
+
+  <footer class="site-footer">
+    <span>© Denis · Калькулятор Cyprus 60-day rule. Только для предварительной оценки.</span>
+    <span>Версия 1.0</span>
+  </footer>
+
+</div>
+
+<script src="calc.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
