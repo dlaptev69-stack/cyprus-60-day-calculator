@@ -23,6 +23,11 @@
   --terra-soft: #F5D9C8;
   --bougainvillea: #A52C7D;
   --sky: #79C7D0;
+  /* Soft rose accents for the Nadezhda Danilova edition. */
+  --rose: #D86A8D;
+  --rose-deep: #B84872;
+  --rose-soft: #FBE3EC;
+  --rose-mist: rgba(216, 106, 141, 0.16);
   --success: #2D7A4B;
   --success-soft: #DDF0E5;
   --warn: #A56716;
@@ -60,8 +65,9 @@ html, body {
 body {
   background:
     radial-gradient(820px 480px at 92% 2%, rgba(112, 189, 195, 0.22), transparent 60%),
-    radial-gradient(620px 360px at 8% 10%, rgba(212, 166, 74, 0.12), transparent 68%),
-    linear-gradient(140deg, #FCF7ED 0%, #F3EADB 52%, #ECF2F0 100%),
+    radial-gradient(720px 420px at 6% 4%, rgba(216, 106, 141, 0.14), transparent 66%),
+    radial-gradient(620px 360px at 8% 10%, rgba(212, 166, 74, 0.10), transparent 68%),
+    linear-gradient(140deg, #FCF4F1 0%, #F3EADB 52%, #ECF2F0 100%),
     var(--bg);
   min-height: 100vh;
 }
@@ -123,11 +129,11 @@ input, select, textarea { font-family: inherit; font-size: inherit; color: inher
   height: 40px;
   border-radius: 12px;
   background:
-    linear-gradient(145deg, rgba(255,255,255,0.18), transparent),
-    linear-gradient(135deg, var(--accent), #0D8B92);
+    linear-gradient(145deg, rgba(255,255,255,0.22), transparent),
+    linear-gradient(135deg, var(--accent) 0%, #0D8B92 55%, var(--rose) 100%);
   display: grid; place-items: center;
   color: #fff;
-  box-shadow: 0 12px 24px rgba(0, 109, 119, 0.22);
+  box-shadow: 0 12px 24px rgba(184, 72, 114, 0.22);
 }
 .brand-mark svg { width: 22px; height: 22px; }
 .brand-text { display: flex; flex-direction: column; }
@@ -202,8 +208,8 @@ input, select, textarea { font-family: inherit; font-size: inherit; color: inher
   width: 8px;
   height: 8px;
   border-radius: 999px;
-  background: var(--bougainvillea);
-  box-shadow: 0 0 0 4px rgba(165, 44, 125, 0.12);
+  background: var(--rose);
+  box-shadow: 0 0 0 4px var(--rose-mist);
 }
 .hero h1 {
   font-family: var(--font-sans);
@@ -274,13 +280,13 @@ input, select, textarea { font-family: inherit; font-size: inherit; color: inher
   stroke-linecap: round;
 }
 .cyprus-motif .wave-b {
-  stroke: rgba(184, 94, 61, 0.13);
+  stroke: rgba(216, 106, 141, 0.22);
 }
 .cyprus-motif .dot-a {
   fill: rgba(212, 166, 74, 0.48);
 }
 .cyprus-motif .dot-b {
-  fill: rgba(165, 44, 125, 0.26);
+  fill: rgba(216, 106, 141, 0.38);
 }
 .sun-orb {
   position: absolute;
@@ -303,10 +309,10 @@ input, select, textarea { font-family: inherit; font-size: inherit; color: inher
   padding: 16px;
   border-radius: 26px;
   background:
-    linear-gradient(145deg, rgba(255,255,255,0.76), rgba(255,255,255,0.28)),
-    linear-gradient(160deg, rgba(0,109,119,0.12), rgba(165,44,125,0.06));
-  border: 1px solid rgba(255, 255, 255, 0.78);
-  box-shadow: 0 22px 54px rgba(22, 45, 49, 0.11);
+    linear-gradient(145deg, rgba(255,255,255,0.78), rgba(255,255,255,0.30)),
+    linear-gradient(160deg, rgba(0,109,119,0.10), rgba(216,106,141,0.16));
+  border: 1px solid rgba(255, 226, 234, 0.78);
+  box-shadow: 0 22px 54px rgba(184, 72, 114, 0.14);
   backdrop-filter: blur(20px);
   overflow: hidden;
 }
@@ -317,8 +323,9 @@ input, select, textarea { font-family: inherit; font-size: inherit; color: inher
   height: 160px;
   background:
     linear-gradient(135deg, transparent 20%, rgba(0, 109, 119, 0.16) 21% 28%, transparent 29%),
-    linear-gradient(155deg, transparent 34%, rgba(217, 164, 65, 0.22) 35% 42%, transparent 43%);
-  opacity: 0.9;
+    linear-gradient(145deg, transparent 28%, rgba(216, 106, 141, 0.26) 29% 35%, transparent 36%),
+    linear-gradient(155deg, transparent 40%, rgba(217, 164, 65, 0.18) 41% 47%, transparent 48%);
+  opacity: 0.92;
 }
 .mini-map {
   position: relative;
@@ -348,7 +355,7 @@ input, select, textarea { font-family: inherit; font-size: inherit; color: inher
   font-size: 10px;
   text-transform: uppercase;
   letter-spacing: 0.14em;
-  color: var(--accent);
+  color: var(--rose-deep);
   font-weight: 800;
 }
 .residency-card-content strong {
@@ -1086,32 +1093,44 @@ table.trips td input:focus, table.trips td select:focus {
   }
 }
 
-/* -------- Cloud sync section -------- */
-.cloud-sync .cloud-grid { align-items: end; }
-.cloud-actions-field label { color: var(--text-muted); font-weight: 600; font-size: 12px; text-transform: uppercase; letter-spacing: 0.08em; }
-.cloud-actions { display: flex; flex-wrap: wrap; gap: 8px; }
-.cloud-actions .btn { flex: 0 1 auto; }
-.cloud-status {
+/* -------- Cloud sync (auto) section -------- */
+.cloud-sync { padding: 18px 22px; }
+.cloud-bar {
   display: flex;
   align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+  justify-content: space-between;
+}
+.cloud-bar-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+.cloud-status {
+  display: inline-flex;
+  align-items: center;
   gap: 10px;
-  margin-top: 14px;
-  padding: 10px 14px;
-  border-radius: 10px;
+  padding: 8px 14px;
+  border-radius: 999px;
   border: 1px solid rgba(11, 111, 120, 0.18);
   background: var(--accent-soft);
   color: var(--accent-ink);
   font-size: 13px;
-  line-height: 1.4;
+  font-weight: 600;
+  line-height: 1.3;
+  min-height: 36px;
 }
 .cloud-status .cloud-status-dot {
-  width: 10px;
-  height: 10px;
+  width: 9px;
+  height: 9px;
   border-radius: 50%;
   background: var(--accent);
   flex-shrink: 0;
   box-shadow: 0 0 0 3px rgba(11, 111, 120, 0.15);
 }
+.cloud-status.status-idle { background: var(--accent-soft); }
 .cloud-status.status-busy { background: var(--accent-soft); }
 .cloud-status.status-busy .cloud-status-dot { background: var(--accent); animation: cloud-pulse 1.2s ease-in-out infinite; }
 .cloud-status.status-ok { background: var(--success-soft); color: #1b4d2e; border-color: rgba(45, 122, 75, 0.25); }
@@ -1120,7 +1139,57 @@ table.trips td input:focus, table.trips td select:focus {
 .cloud-status.status-info .cloud-status-dot { background: var(--text-muted); }
 .cloud-status.status-error { background: var(--danger-soft); color: #6b1f17; border-color: rgba(167, 58, 47, 0.3); }
 .cloud-status.status-error .cloud-status-dot { background: var(--danger); }
-.cloud-autosave { margin-top: 14px; }
+
+.cloud-link-btn { font-weight: 600; }
+
+.cloud-explain {
+  margin: 12px 0 0;
+  color: var(--text-muted);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.cloud-advanced {
+  margin-top: 14px;
+  padding: 14px 16px;
+  background: rgba(255, 252, 246, 0.72);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+.cloud-advanced[hidden] { display: none; }
+.cloud-advanced-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 14px;
+}
+.cloud-advanced-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.cloud-advanced-label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+.cloud-advanced-value {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text);
+}
+.cloud-advanced-hint {
+  font-size: 12px;
+  color: var(--text-faint);
+  line-height: 1.4;
+}
+.cloud-advanced-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin: 4px 0 2px;
+}
 
 @keyframes cloud-pulse {
   0%, 100% { transform: scale(1); opacity: 1; }
@@ -1128,6 +1197,8 @@ table.trips td input:focus, table.trips td select:focus {
 }
 
 @media (max-width: 720px) {
-  .cloud-actions { flex-direction: column; }
-  .cloud-actions .btn { width: 100%; justify-content: center; }
+  .cloud-bar { flex-direction: column; align-items: stretch; }
+  .cloud-bar-actions { justify-content: stretch; }
+  .cloud-bar-actions .btn { flex: 1 1 auto; justify-content: center; }
+  .cloud-status { justify-content: center; }
 }

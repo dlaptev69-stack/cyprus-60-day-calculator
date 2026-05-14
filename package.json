@@ -2,7 +2,7 @@
   "name": "cyprus-60-day-calculator",
   "version": "2.0.0",
   "private": true,
-  "description": "Cyprus 60-day tax residency calculator with cloud-backed draft storage for Denis.",
+  "description": "Cyprus 60-day tax residency calculator with cloud-backed draft storage for Nadezhda Danilova.",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",

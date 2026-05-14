@@ -23,6 +23,11 @@
   --terra-soft: #F5D9C8;
   --bougainvillea: #A52C7D;
   --sky: #79C7D0;
+  /* Soft rose accents for the Nadezhda Danilova edition. */
+  --rose: #D86A8D;
+  --rose-deep: #B84872;
+  --rose-soft: #FBE3EC;
+  --rose-mist: rgba(216, 106, 141, 0.16);
   --success: #2D7A4B;
   --success-soft: #DDF0E5;
   --warn: #A56716;
@@ -60,8 +65,9 @@ html, body {
 body {
   background:
     radial-gradient(820px 480px at 92% 2%, rgba(112, 189, 195, 0.22), transparent 60%),
-    radial-gradient(620px 360px at 8% 10%, rgba(212, 166, 74, 0.12), transparent 68%),
-    linear-gradient(140deg, #FCF7ED 0%, #F3EADB 52%, #ECF2F0 100%),
+    radial-gradient(720px 420px at 6% 4%, rgba(216, 106, 141, 0.14), transparent 66%),
+    radial-gradient(620px 360px at 8% 10%, rgba(212, 166, 74, 0.10), transparent 68%),
+    linear-gradient(140deg, #FCF4F1 0%, #F3EADB 52%, #ECF2F0 100%),
     var(--bg);
   min-height: 100vh;
 }
@@ -123,11 +129,11 @@ input, select, textarea { font-family: inherit; font-size: inherit; color: inher
   height: 40px;
   border-radius: 12px;
   background:
-    linear-gradient(145deg, rgba(255,255,255,0.18), transparent),
-    linear-gradient(135deg, var(--accent), #0D8B92);
+    linear-gradient(145deg, rgba(255,255,255,0.22), transparent),
+    linear-gradient(135deg, var(--accent) 0%, #0D8B92 55%, var(--rose) 100%);
   display: grid; place-items: center;
   color: #fff;
-  box-shadow: 0 12px 24px rgba(0, 109, 119, 0.22);
+  box-shadow: 0 12px 24px rgba(184, 72, 114, 0.22);
 }
 .brand-mark svg { width: 22px; height: 22px; }
 .brand-text { display: flex; flex-direction: column; }
@@ -202,8 +208,8 @@ input, select, textarea { font-family: inherit; font-size: inherit; color: inher
   width: 8px;
   height: 8px;
   border-radius: 999px;
-  background: var(--bougainvillea);
-  box-shadow: 0 0 0 4px rgba(165, 44, 125, 0.12);
+  background: var(--rose);
+  box-shadow: 0 0 0 4px var(--rose-mist);
 }
 .hero h1 {
   font-family: var(--font-sans);
@@ -274,13 +280,13 @@ input, select, textarea { font-family: inherit; font-size: inherit; color: inher
   stroke-linecap: round;
 }
 .cyprus-motif .wave-b {
-  stroke: rgba(184, 94, 61, 0.13);
+  stroke: rgba(216, 106, 141, 0.22);
 }
 .cyprus-motif .dot-a {
   fill: rgba(212, 166, 74, 0.48);
 }
 .cyprus-motif .dot-b {
-  fill: rgba(165, 44, 125, 0.26);
+  fill: rgba(216, 106, 141, 0.38);
 }
 .sun-orb {
   position: absolute;
@@ -303,10 +309,10 @@ input, select, textarea { font-family: inherit; font-size: inherit; color: inher
   padding: 16px;
   border-radius: 26px;
   background:
-    linear-gradient(145deg, rgba(255,255,255,0.76), rgba(255,255,255,0.28)),
-    linear-gradient(160deg, rgba(0,109,119,0.12), rgba(165,44,125,0.06));
-  border: 1px solid rgba(255, 255, 255, 0.78);
-  box-shadow: 0 22px 54px rgba(22, 45, 49, 0.11);
+    linear-gradient(145deg, rgba(255,255,255,0.78), rgba(255,255,255,0.30)),
+    linear-gradient(160deg, rgba(0,109,119,0.10), rgba(216,106,141,0.16));
+  border: 1px solid rgba(255, 226, 234, 0.78);
+  box-shadow: 0 22px 54px rgba(184, 72, 114, 0.14);
   backdrop-filter: blur(20px);
   overflow: hidden;
 }
@@ -317,8 +323,9 @@ input, select, textarea { font-family: inherit; font-size: inherit; color: inher
   height: 160px;
   background:
     linear-gradient(135deg, transparent 20%, rgba(0, 109, 119, 0.16) 21% 28%, transparent 29%),
-    linear-gradient(155deg, transparent 34%, rgba(217, 164, 65, 0.22) 35% 42%, transparent 43%);
-  opacity: 0.9;
+    linear-gradient(145deg, transparent 28%, rgba(216, 106, 141, 0.26) 29% 35%, transparent 36%),
+    linear-gradient(155deg, transparent 40%, rgba(217, 164, 65, 0.18) 41% 47%, transparent 48%);
+  opacity: 0.92;
 }
 .mini-map {
   position: relative;
@@ -348,7 +355,7 @@ input, select, textarea { font-family: inherit; font-size: inherit; color: inher
   font-size: 10px;
   text-transform: uppercase;
   letter-spacing: 0.14em;
-  color: var(--accent);
+  color: var(--rose-deep);
   font-weight: 800;
 }
 .residency-card-content strong {

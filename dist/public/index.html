@@ -3,8 +3,8 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Калькулятор Cyprus 60-day rule | налоговое резидентство Кипра</title>
-<meta name="description" content="Расчётный помощник по правилу 60 дней для налогового резидентства Кипра. Не является юридическим или налоговым заключением." />
+<title>Cyprus 60-Day Calculator — Nadezhda Danilova | налоговое резидентство Кипра</title>
+<meta name="description" content="Расчётный помощник по правилу 60 дней для налогового резидентства Кипра, рабочее пространство Nadezhda Danilova. Не является юридическим или налоговым заключением." />
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Cormorant+Garamond:wght@500;600&display=swap" rel="stylesheet">
@@ -18,14 +18,14 @@
   <header class="site-header">
     <div class="brand">
       <div class="brand-mark" aria-hidden="true">
-        <!-- Stylized mark: D inscribed on a stone tablet, evoking limestone + civic seal -->
+        <!-- Stylized mark: N inscribed on a stone tablet, evoking limestone + civic seal -->
         <svg viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
           <rect x="4" y="4" width="24" height="24" rx="3" stroke="currentColor" stroke-width="1.5" opacity="0.4"/>
-          <path d="M11 9.5H16.5C20.7 9.5 23.5 12.1 23.5 16C23.5 19.9 20.7 22.5 16.5 22.5H11V9.5Z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+          <path d="M11 22.5V9.5L21 22.5V9.5" stroke="currentColor" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
         </svg>
       </div>
       <div class="brand-text">
-        <span class="brand-name">Denis</span>
+        <span class="brand-name">Nadezhda Danilova</span>
         <span class="brand-sub">Cyprus 60-day rule</span>
       </div>
     </div>
@@ -66,7 +66,7 @@
           <span class="coast coast-c"></span>
         </div>
         <div class="residency-card-content">
-          <span class="card-kicker">Denis</span>
+          <span class="card-kicker">Nadezhda Danilova</span>
           <strong>60-day rule</strong>
           <small>Cyprus presence threshold</small>
         </div>
@@ -161,44 +161,50 @@
     </div>
   </section>
 
-  <!-- Cloud sync -->
+  <!-- Cloud sync (auto) -->
   <section class="card cloud-sync" aria-labelledby="cloud-h" data-testid="cloud-sync">
-    <h2 id="cloud-h">Облачное хранение</h2>
-    <p class="desc">Введи свой код доступа — это твой персональный «ключ» к данным. По связке «код + налоговый год» поездки и настройки сохраняются в облаке и подгружаются с любого устройства. Браузерное хранилище не используется.</p>
-    <div class="grid grid-2 cloud-grid">
-      <div class="field">
-        <label for="cloud_access_code">Код доступа</label>
-        <input id="cloud_access_code" type="text" class="input" autocomplete="off" spellcheck="false"
-          placeholder="например: denis-2026-secret"
-          data-testid="input-access-code" />
-        <span class="hint">Минимум 8 символов. Запомни его — без кода данные не открыть.</span>
+    <div class="cloud-bar" data-testid="cloud-bar">
+      <div class="cloud-status" id="cloud-status" data-testid="cloud-status" aria-live="polite">
+        <span class="cloud-status-dot" aria-hidden="true"></span>
+        <span class="cloud-status-text">Автосохранение включено</span>
       </div>
-      <div class="field cloud-actions-field">
-        <label>Действия с облаком</label>
-        <div class="cloud-actions">
-          <button type="button" class="btn" id="cloud-load" data-testid="button-cloud-load">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="M7 10l5 5 5-5"/><path d="M5 21h14"/></svg>
-            Загрузить из облака
-          </button>
-          <button type="button" class="btn btn-primary" id="cloud-save" data-testid="button-cloud-save">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><path d="M17 21v-8H7v8"/><path d="M7 3v5h8"/></svg>
-            Сохранить в облако
-          </button>
-          <button type="button" class="btn btn-ghost" id="cloud-clear" data-testid="button-cloud-clear">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
-            Удалить черновик
-          </button>
+      <div class="cloud-bar-actions">
+        <button type="button" class="btn cloud-link-btn" id="cloud-copy-link" data-testid="button-copy-private-link">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.07 0l3-3a5 5 0 1 0-7.07-7.07l-1.5 1.5"/><path d="M14 11a5 5 0 0 0-7.07 0l-3 3a5 5 0 1 0 7.07 7.07l1.5-1.5"/></svg>
+          Скопировать приватную ссылку
+        </button>
+        <button type="button" class="btn btn-ghost cloud-advanced-toggle" id="cloud-advanced-toggle"
+          aria-expanded="false" aria-controls="cloud-advanced" data-testid="button-cloud-advanced-toggle">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33h.01a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82v.01a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+          Дополнительно
+        </button>
+      </div>
+    </div>
+    <p class="cloud-explain" id="cloud-explain">Данные лежат в облаке. Этот браузер хранит только приватный ключ доступа в куках — поездки и настройки сохраняются автоматически. Чтобы открыть тот же черновик на другом устройстве, нажми «Скопировать приватную ссылку» и открой её там. Ссылку никому не пересылай — она равна доступу к данным.</p>
+    <div class="cloud-advanced" id="cloud-advanced" data-testid="cloud-advanced" hidden>
+      <div class="cloud-advanced-grid">
+        <div class="cloud-advanced-item">
+          <span class="cloud-advanced-label">Налоговый год для облака</span>
+          <span class="cloud-advanced-value" id="cloud-year-display" data-testid="cloud-year-display">—</span>
+          <span class="cloud-advanced-hint">Меняется через поле «Налоговый год» выше. Для каждого года хранится свой черновик.</span>
+        </div>
+        <div class="cloud-advanced-item">
+          <span class="cloud-advanced-label">Последнее сохранение</span>
+          <span class="cloud-advanced-value" id="cloud-last-saved" data-testid="cloud-last-saved">пока не было</span>
+          <span class="cloud-advanced-hint">Автосохранение срабатывает примерно через секунду после правки.</span>
+        </div>
+        <div class="cloud-advanced-item">
+          <span class="cloud-advanced-label">Сбросить рабочее пространство</span>
+          <div class="cloud-advanced-actions">
+            <button type="button" class="btn btn-ghost" id="cloud-reset-workspace" data-testid="button-reset-workspace">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v5h5"/></svg>
+              Удалить облачный черновик и пересоздать ключ
+            </button>
+          </div>
+          <span class="cloud-advanced-hint">Удалит облачный черновик и выпустит новый приватный ключ. Старая приватная ссылка перестанет работать.</span>
         </div>
       </div>
     </div>
-    <div class="cloud-status" id="cloud-status" data-testid="cloud-status" aria-live="polite">
-      <span class="cloud-status-dot" aria-hidden="true"></span>
-      <span class="cloud-status-text">Облако ещё не использовалось в этой сессии.</span>
-    </div>
-    <label class="toggle cloud-autosave">
-      <input type="checkbox" id="cloud_autosave" checked data-testid="toggle-cloud-autosave" />
-      <span class="toggle-label"><b>Автосохранение в облако после нажатия «Рассчитать»</b><span class="toggle-desc">Данные уходят на сервер сразу после расчёта, если код доступа заполнен.</span></span>
-    </label>
   </section>
 
   <!-- Trips -->
@@ -347,7 +353,7 @@
   </section>
 
   <footer class="site-footer">
-    <span>© Denis · Калькулятор Cyprus 60-day rule. Только для предварительной оценки.</span>
+    <span>© Nadezhda Danilova · Калькулятор Cyprus 60-day rule. Только для предварительной оценки.</span>
     <span>Версия 1.0</span>
   </footer>
 
