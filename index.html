@@ -272,7 +272,7 @@
       <div class="report-head">
         <div>
           <h2 id="report-h">Отчёт для налогового консультанта</h2>
-          <p class="desc">Копируемый текстовый отчёт по текущему расчёту. Для PDF нажми «Печать / PDF» и выбери «Save as PDF» или «Сохранить как PDF» в браузере.</p>
+          <p class="desc">Строгий расчётный working paper по текущему сценарию. Для PDF нажми «Печать / PDF» и выбери «Save as PDF» или «Сохранить как PDF» в браузере.</p>
         </div>
         <div class="report-actions">
           <button type="button" class="btn" id="copy-report" data-testid="button-copy-report">
@@ -284,6 +284,11 @@
             Печать / PDF
           </button>
         </div>
+      </div>
+      <div class="report-meta" aria-label="Параметры отчёта">
+        <span><b>Document type</b> Tax residency calculation memo</span>
+        <span><b>Method</b> Deterministic day count</span>
+        <span><b>Status</b> Preliminary, adviser review required</span>
       </div>
       <div class="copy-state" id="copy-state" data-testid="copy-state" aria-live="polite"></div>
       <pre class="report-text" id="consultant-report" data-testid="consultant-report">Запусти расчёт, чтобы сформировать отчёт.</pre>

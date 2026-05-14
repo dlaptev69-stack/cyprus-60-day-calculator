@@ -538,6 +538,13 @@
   }
 
   function buildPrintableHtml(reportText, year) {
+    const generatedAt = new Date().toLocaleString("ru-RU", {
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
     return `<!doctype html>
 <html lang="ru">
 <head>
@@ -546,54 +553,139 @@
   <title>Cyprus 60-Day Report ${escapeHtml(year)}</title>
   <style>
     @page { margin: 16mm; }
+    * { box-sizing: border-box; }
     body {
       margin: 0;
-      background: #fff;
-      color: #111;
+      background: #f4f6f6;
+      color: #142326;
       font-family: Arial, Helvetica, sans-serif;
       font-size: 12px;
       line-height: 1.45;
     }
-    .sheet { max-width: 820px; margin: 0 auto; padding: 28px; }
-    .topline {
+    .sheet {
+      max-width: 840px;
+      margin: 0 auto;
+      padding: 28px;
+      background: #ffffff;
+      border: 1px solid #d7dddd;
+      box-shadow: 0 18px 48px rgba(20, 35, 38, 0.08);
+    }
+    .document-header {
       display: flex;
       justify-content: space-between;
-      gap: 16px;
-      border-bottom: 1px solid #d8d8d8;
-      padding-bottom: 12px;
-      margin-bottom: 18px;
-      color: #0b6f78;
+      align-items: flex-start;
+      gap: 24px;
+      border-bottom: 2px solid #102a2e;
+      padding-bottom: 16px;
+      margin-bottom: 16px;
+    }
+    .brand {
+      color: #102a2e;
+      font-size: 16px;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+    }
+    .brand small {
+      display: block;
+      margin-top: 3px;
+      color: #5b6b70;
+      font-size: 10px;
       font-weight: 700;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+    }
+    .doc-ref {
+      text-align: right;
+      color: #5b6b70;
+      font-size: 10px;
+      line-height: 1.5;
     }
     h1 {
-      margin: 0 0 14px;
-      font-size: 22px;
+      margin: 0 0 8px;
+      font-size: 21px;
       line-height: 1.15;
       color: #102a2e;
+    }
+    .subtitle {
+      margin: 0 0 18px;
+      color: #5b6b70;
+      font-size: 12px;
+    }
+    .meta-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      border: 1px solid #d7dddd;
+      margin: 0 0 18px;
+    }
+    .meta-item {
+      min-height: 56px;
+      padding: 10px 12px;
+      border-right: 1px solid #d7dddd;
+      background: #fbfcfc;
+    }
+    .meta-item:last-child { border-right: none; }
+    .meta-item b {
+      display: block;
+      margin-bottom: 4px;
+      color: #102a2e;
+      font-size: 9px;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+    }
+    .meta-item span {
+      color: #374b50;
+      font-weight: 700;
     }
     pre {
       white-space: pre-wrap;
       word-break: break-word;
       margin: 0;
       font-family: Arial, Helvetica, sans-serif;
+      padding: 16px 18px;
+      border: 1px solid #d7dddd;
+      border-left: 4px solid #0b6f78;
+      background: #ffffff;
+      color: #142326;
+      font-size: 11.5px;
+      line-height: 1.5;
     }
     .actions {
       margin: 0 0 18px;
       padding: 10px 12px;
       border: 1px solid #d8d8d8;
-      border-radius: 10px;
-      background: #f7f4ed;
+      background: #f7f9f9;
       color: #53676a;
     }
-    @media print { .actions { display: none; } .sheet { padding: 0; } }
+    .footer-note {
+      margin-top: 16px;
+      padding-top: 10px;
+      border-top: 1px solid #d7dddd;
+      color: #69787c;
+      font-size: 10px;
+    }
+    @media print {
+      body { background: #ffffff; }
+      .actions { display: none; }
+      .sheet { padding: 0; border: none; box-shadow: none; }
+    }
   </style>
 </head>
 <body>
   <main class="sheet">
-    <div class="topline"><span>Denis</span><span>Cyprus 60-Day Calculator</span></div>
-    <h1>Отчёт для налогового консультанта</h1>
+    <header class="document-header">
+      <div class="brand">Denis<small>Cyprus 60-Day Calculator</small></div>
+      <div class="doc-ref">Tax year: ${escapeHtml(year)}<br>Generated: ${escapeHtml(generatedAt)}<br>Status: preliminary</div>
+    </header>
+    <h1>Tax Residency Calculation Memo</h1>
+    <p class="subtitle">Working paper for Cyprus 60-day rule review. Deterministic day-count calculation, not legal or tax advice.</p>
+    <section class="meta-grid" aria-label="Document metadata">
+      <div class="meta-item"><b>Document type</b><span>Consultant memo</span></div>
+      <div class="meta-item"><b>Method</b><span>Deterministic count</span></div>
+      <div class="meta-item"><b>Review status</b><span>Advisor review required</span></div>
+    </section>
     <div class="actions">Если диалог печати не открылся автоматически, нажми Ctrl+P или Cmd+P и выбери «Сохранить как PDF».</div>
     <pre>${escapeHtml(reportText)}</pre>
+    <div class="footer-note">This report is a calculation aid and checklist. Final tax residency assessment should be confirmed by a qualified Cyprus tax adviser.</div>
   </main>
 </body>
 </html>`;

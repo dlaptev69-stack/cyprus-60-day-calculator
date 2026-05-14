@@ -887,12 +887,24 @@ table.trips td input:focus, table.trips td select:focus {
 
 .report-card {
   margin-top: 20px;
+  background:
+    linear-gradient(180deg, rgba(255,255,255,0.88), rgba(255,255,255,0.74)),
+    var(--surface-alt);
+  border-color: rgba(16, 42, 46, 0.16);
 }
 .report-head {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
   gap: 18px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid rgba(16, 42, 46, 0.14);
+}
+.report-head h2 {
+  font-family: var(--font-sans);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: #102A2E;
 }
 .report-actions {
   display: flex;
@@ -900,6 +912,31 @@ table.trips td input:focus, table.trips td select:focus {
   flex-wrap: wrap;
   justify-content: flex-end;
   flex-shrink: 0;
+}
+.report-meta {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1px;
+  margin: 16px 0 14px;
+  border: 1px solid rgba(16, 42, 46, 0.14);
+  border-radius: 16px;
+  overflow: hidden;
+  background: rgba(16, 42, 46, 0.12);
+}
+.report-meta span {
+  display: grid;
+  gap: 4px;
+  padding: 12px 14px;
+  background: rgba(255, 255, 255, 0.78);
+  color: var(--text-muted);
+  font-size: 12px;
+  line-height: 1.35;
+}
+.report-meta b {
+  color: #102A2E;
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
 }
 .copy-state {
   min-height: 20px;
@@ -910,19 +947,19 @@ table.trips td input:focus, table.trips td select:focus {
 }
 .report-text {
   margin: 0;
-  padding: 16px;
-  max-height: 420px;
+  padding: 20px 22px;
+  max-height: 520px;
   overflow: auto;
   white-space: pre-wrap;
-  background:
-    linear-gradient(145deg, rgba(255,255,255,0.04), transparent),
-    #10292E;
-  color: #F4F1EA;
-  border-radius: 22px;
-  border: 1px solid rgba(121, 199, 208, 0.26);
-  font-family: var(--font-mono);
-  font-size: 12px;
-  line-height: 1.55;
+  background: #FFFFFF;
+  color: #1A2528;
+  border-radius: 18px;
+  border: 1px solid rgba(16, 42, 46, 0.16);
+  box-shadow: inset 4px 0 0 #0B6F78;
+  font-family: "Manrope", "Segoe UI", Arial, sans-serif;
+  font-size: 13px;
+  line-height: 1.62;
+  tab-size: 2;
 }
 @media (max-width: 720px) {
   .report-head {
@@ -931,6 +968,9 @@ table.trips td input:focus, table.trips td select:focus {
   .report-actions {
     justify-content: flex-start;
     margin-top: 12px;
+  }
+  .report-meta {
+    grid-template-columns: 1fr;
   }
 }
 
@@ -1021,6 +1061,7 @@ table.trips td input:focus, table.trips td select:focus {
   #status-card,
   #results > .card:not(.report-card),
   .report-head,
+  .report-meta,
   .copy-state {
     display: none !important;
   }
@@ -1037,6 +1078,7 @@ table.trips td input:focus, table.trips td select:focus {
     background: white;
     color: #111;
     border: none;
+    box-shadow: none;
     padding: 0;
     font-size: 11px;
     line-height: 1.45;
