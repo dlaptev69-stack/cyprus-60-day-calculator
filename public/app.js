@@ -718,15 +718,100 @@
     }
   });
 
+  // Trigger autosave whenever the user edits trip rows (inputs/selects inside
+  // the body). Delegated so newly added rows are covered.
+  tripsBody.addEventListener("input", () => scheduleAutosave());
+  tripsBody.addEventListener("change", () => scheduleAutosave());
+
   $("#copy-report").addEventListener("click", copyReport);
   $("#print-report").addEventListener("click", printReport);
 
-  // -------- Cloud sync (no browser storage) --------
+  // -------- Cloud sync (no localStorage / sessionStorage / indexedDB) --------
+  //
+  // Trip data lives only in cloud SQLite. The ONLY thing remembered in this
+  // browser is a cookie with the access code + tax_year, so a refresh can
+  // re-fetch the cloud draft without the user re-typing the code. The cookie
+  // is opt-in via #cloud_remember (default: on). When disabled or cleared,
+  // a refresh shows an empty form.
   const ACCESS_CODE_MIN_LEN = 8;
+  const REMEMBER_COOKIE = "cyprus60_remember";
+  const COOKIE_MAX_AGE_DAYS = 180;
+  const AUTOSAVE_DEBOUNCE_MS = 1200;
+
+  let autosaveTimer = null;
+  let lastAutosaveSig = "";
+  // Suppress autosave while we programmatically populate the form (samples,
+  // cloud load). Otherwise loading a draft would immediately re-save it.
+  let suppressAutosave = false;
 
   function getAccessCode() {
     const el = $("#cloud_access_code");
     return el ? el.value.trim() : "";
+  }
+
+  function getTaxYear() {
+    const n = Number($("#tax_year").value);
+    return Number.isInteger(n) ? n : null;
+  }
+
+  function rememberEnabled() {
+    return !!$("#cloud_remember")?.checked;
+  }
+
+  function writeRememberCookie(code, year) {
+    if (!code || !year) return;
+    const value = encodeURIComponent(JSON.stringify({ code, year }));
+    const maxAge = COOKIE_MAX_AGE_DAYS * 24 * 60 * 60;
+    const secure = location.protocol === "https:" ? "; Secure" : "";
+    document.cookie = `${REMEMBER_COOKIE}=${value}; Path=/; Max-Age=${maxAge}; SameSite=Lax${secure}`;
+  }
+
+  function clearRememberCookie() {
+    const secure = location.protocol === "https:" ? "; Secure" : "";
+    document.cookie = `${REMEMBER_COOKIE}=; Path=/; Max-Age=0; SameSite=Lax${secure}`;
+  }
+
+  function readRememberCookie() {
+    const raw = document.cookie.split("; ").find((c) => c.startsWith(REMEMBER_COOKIE + "="));
+    if (!raw) return null;
+    try {
+      const parsed = JSON.parse(decodeURIComponent(raw.split("=").slice(1).join("=")));
+      if (typeof parsed.code === "string" && Number.isInteger(parsed.year)) {
+        return parsed;
+      }
+    } catch (_) {
+      // fall through
+    }
+    return null;
+  }
+
+  function syncRememberCookieFromUI() {
+    if (!rememberEnabled()) {
+      clearRememberCookie();
+      return;
+    }
+    const code = getAccessCode();
+    const year = getTaxYear();
+    if (code && code.length >= ACCESS_CODE_MIN_LEN && year) {
+      writeRememberCookie(code, year);
+    }
+  }
+
+  function scheduleAutosave() {
+    if (suppressAutosave) return;
+    if (!$("#cloud_autosave")?.checked) return;
+    const code = getAccessCode();
+    if (!code || code.length < ACCESS_CODE_MIN_LEN) return;
+    if (!getTaxYear()) return;
+    if (autosaveTimer) clearTimeout(autosaveTimer);
+    autosaveTimer = setTimeout(() => {
+      autosaveTimer = null;
+      const payload = buildPayload();
+      const sig = JSON.stringify(payload);
+      if (sig === lastAutosaveSig) return;
+      lastAutosaveSig = sig;
+      cloudSave({ silentIfNoCode: true, autosave: true });
+    }, AUTOSAVE_DEBOUNCE_MS);
   }
 
   function setCloudStatus(kind, message) {
@@ -740,6 +825,7 @@
 
   function applyPayloadToUI(p) {
     if (!p || typeof p !== "object") return;
+    suppressAutosave = true;
     if (p.tax_year !== undefined && p.tax_year !== null) {
       $("#tax_year").value = String(p.tax_year);
     }
@@ -770,6 +856,10 @@
     } else {
       for (const t of trips) makeRow(t);
     }
+    // Sync baseline so the very next user edit triggers a fresh autosave
+    // instead of being suppressed as a no-op.
+    lastAutosaveSig = JSON.stringify(buildPayload());
+    suppressAutosave = false;
   }
 
   async function cloudLoad() {
@@ -800,7 +890,8 @@
       window._suppressScroll = true;
       runCalc();
       window._suppressScroll = false;
-      setCloudStatus("ok", `Загружено из облака (обновлено: ${formatStamp(data.updated_at)}).`);
+      syncRememberCookieFromUI();
+      setCloudStatus("ok", `Загружено из облака (обновлено: ${formatStamp(data.updated_at)}). Сами данные остаются в облаке Railway.`);
     } catch (err) {
       setCloudStatus("error", `Сеть недоступна или сервер не отвечает: ${err.message}`);
     }
@@ -826,7 +917,11 @@
         setCloudStatus("error", `Не удалось сохранить: ${data.error || res.statusText}`);
         return;
       }
-      setCloudStatus("ok", `Сохранено в облако (${formatStamp(data.updated_at)}).`);
+      lastAutosaveSig = JSON.stringify(payload);
+      syncRememberCookieFromUI();
+      const stamp = formatStamp(data.updated_at);
+      const prefix = opts.autosave ? "Автосохранено в облако" : "Сохранено в облако";
+      setCloudStatus("ok", `${prefix} (${stamp}). Поездки и настройки лежат на сервере, не в браузере.`);
     } catch (err) {
       setCloudStatus("error", `Сеть недоступна или сервер не отвечает: ${err.message}`);
     }
@@ -851,10 +946,15 @@
         setCloudStatus("error", `Не удалось удалить: ${data.error || res.statusText}`);
         return;
       }
+      // After deleting the cloud draft, forget the remembered code/year too
+      // so a refresh does not try to auto-load a deleted draft. The form on
+      // screen is untouched.
+      clearRememberCookie();
+      lastAutosaveSig = "";
       if (data.deleted > 0) {
-        setCloudStatus("ok", "Облачный черновик удалён.");
+        setCloudStatus("ok", "Облачный черновик удалён. Запомненный код/год в этом браузере тоже сброшены.");
       } else {
-        setCloudStatus("info", "В облаке не было черновика для этого кода и года.");
+        setCloudStatus("info", "В облаке не было черновика для этого кода и года. Запомненный код/год в этом браузере сброшены.");
       }
     } catch (err) {
       setCloudStatus("error", `Сеть недоступна или сервер не отвечает: ${err.message}`);
@@ -877,6 +977,60 @@
   $("#cloud-save")?.addEventListener("click", () => cloudSave());
   $("#cloud-clear")?.addEventListener("click", cloudClear);
 
-  // Initial state: one empty row
+  // Autosave triggers for non-trip controls: tax year, top-level selects,
+  // settings checkboxes. Also keep the remember-cookie in sync whenever the
+  // code or tax year change.
+  const autosaveSelectors = [
+    "#tax_year",
+    "#has_cyprus_home",
+    "#has_cyprus_business_or_employment_or_directorship",
+    "#possible_tax_resident_elsewhere",
+    "#set_arrival_cyprus",
+    "#set_departure_cyprus",
+    "#set_same_day_arr_dep_cyprus",
+    "#set_same_day_dep_ret_cyprus",
+    "#set_transit_cyprus",
+    "#set_arrival_other",
+    "#set_departure_other",
+  ];
+  for (const sel of autosaveSelectors) {
+    const el = $(sel);
+    if (!el) continue;
+    el.addEventListener("input", () => scheduleAutosave());
+    el.addEventListener("change", () => scheduleAutosave());
+  }
+
+  $("#cloud_access_code")?.addEventListener("input", () => {
+    syncRememberCookieFromUI();
+    scheduleAutosave();
+  });
+  $("#tax_year")?.addEventListener("input", () => syncRememberCookieFromUI());
+  $("#cloud_remember")?.addEventListener("change", () => {
+    if (rememberEnabled()) {
+      syncRememberCookieFromUI();
+    } else {
+      clearRememberCookie();
+    }
+  });
+  $("#cloud_autosave")?.addEventListener("change", () => {
+    if ($("#cloud_autosave").checked) scheduleAutosave();
+  });
+
+  // Initial state: one empty row, then attempt cookie-driven auto-load so a
+  // simple page refresh restores the cloud draft without re-typing the code.
   makeRow();
+
+  (function bootstrapAutoLoad() {
+    const remembered = readRememberCookie();
+    if (!remembered) return;
+    const codeEl = $("#cloud_access_code");
+    const yearEl = $("#tax_year");
+    if (codeEl) codeEl.value = remembered.code;
+    if (yearEl) yearEl.value = String(remembered.year);
+    if ($("#cloud_remember")) $("#cloud_remember").checked = true;
+    if (remembered.code && remembered.code.length >= ACCESS_CODE_MIN_LEN) {
+      setCloudStatus("busy", "Подтягиваю черновик из облака по запомненному коду…");
+      cloudLoad();
+    }
+  })();
 })();

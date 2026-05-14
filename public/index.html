@@ -164,7 +164,7 @@
   <!-- Cloud sync -->
   <section class="card cloud-sync" aria-labelledby="cloud-h" data-testid="cloud-sync">
     <h2 id="cloud-h">Облачное хранение</h2>
-    <p class="desc">Введи свой код доступа — это твой персональный «ключ» к данным. По связке «код + налоговый год» поездки и настройки сохраняются в облаке и подгружаются с любого устройства. Браузерное хранилище не используется.</p>
+    <p class="desc">Введи свой код доступа — это твой персональный «ключ» к данным. По связке «код + налоговый год» поездки и настройки сохраняются в облаке Railway и подгружаются с любого устройства. Сами данные поездок не лежат в этом браузере: после обновления страницы они подтянутся из облака.</p>
     <div class="grid grid-2 cloud-grid">
       <div class="field">
         <label for="cloud_access_code">Код доступа</label>
@@ -193,11 +193,15 @@
     </div>
     <div class="cloud-status" id="cloud-status" data-testid="cloud-status" aria-live="polite">
       <span class="cloud-status-dot" aria-hidden="true"></span>
-      <span class="cloud-status-text">Облако ещё не использовалось в этой сессии.</span>
+      <span class="cloud-status-text">Данные хранятся в облаке. В этом браузере может быть запомнен только код доступа и налоговый год для автозагрузки.</span>
     </div>
     <label class="toggle cloud-autosave">
       <input type="checkbox" id="cloud_autosave" checked data-testid="toggle-cloud-autosave" />
-      <span class="toggle-label"><b>Автосохранение в облако после нажатия «Рассчитать»</b><span class="toggle-desc">Данные уходят на сервер сразу после расчёта, если код доступа заполнен.</span></span>
+      <span class="toggle-label"><b>Автосохранение в облако при изменениях</b><span class="toggle-desc">Изменения поездок, настроек и базовых ответов уходят на сервер автоматически (раз в пару секунд), если код доступа заполнен. Кнопка «Рассчитать» больше не нужна, чтобы данные не потерялись при обновлении страницы.</span></span>
+    </label>
+    <label class="toggle cloud-remember">
+      <input type="checkbox" id="cloud_remember" checked data-testid="toggle-cloud-remember" />
+      <span class="toggle-label"><b>Запомнить код и год в этом браузере</b><span class="toggle-desc">В куки этого браузера сохраняются ТОЛЬКО код доступа и налоговый год, чтобы при обновлении страницы черновик автоматически подтянулся из облака. Сами поездки и настройки в браузере не хранятся.</span></span>
     </label>
   </section>
 

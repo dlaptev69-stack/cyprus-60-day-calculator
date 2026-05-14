@@ -111,6 +111,28 @@ const server = app.listen(0, "127.0.0.1", async () => {
     const indexRes = await fetch(`${base}/`);
     const indexText = await indexRes.text();
     check("/ serves index.html from public/", indexRes.status === 200 && indexText.includes("Облачное хранение"));
+    check(
+      "index advertises remember-code-and-year cookie toggle",
+      indexText.includes("Запомнить код и год в этом браузере"),
+    );
+    check(
+      "index says trip data lives in cloud, not browser",
+      indexText.includes("Сами данные поездок не лежат в этом браузере"),
+    );
+
+    const appJsText = await (await fetch(`${base}/app.js`)).text();
+    check(
+      "frontend does NOT use localStorage/sessionStorage/indexedDB",
+      !/\b(localStorage|sessionStorage|indexedDB)\s*\./.test(appJsText),
+    );
+    check(
+      "frontend uses cookie-based remember store",
+      appJsText.includes("REMEMBER_COOKIE") && appJsText.includes("document.cookie"),
+    );
+    check(
+      "frontend has debounced cloud autosave",
+      appJsText.includes("scheduleAutosave") && appJsText.includes("AUTOSAVE_DEBOUNCE_MS"),
+    );
 
     const stylesRes = await fetch(`${base}/styles.css`);
     check("/styles.css served (200)", stylesRes.status === 200);
