@@ -31,6 +31,8 @@ autosave enabled and an access code entered).
   rate limiting, and `public/` as the only static root.
 - `tests/smoke.js` — Node smoke test exercising the API end-to-end against a
   temporary database.
+- `tests/recovery.js` — covers the temporary `/api/recovery/*` admin surface:
+  disabled by default, token enforcement, summary shape, and payload copy.
 
 ## API
 
@@ -56,6 +58,76 @@ capped at 256 KB and trips at 500 entries to keep writes well-formed.
 `API_RATE_LIMIT_WINDOW_MS`, or set `API_RATE_LIMIT_DISABLED=1` (the smoke
 test sets this so its back-to-back calls do not flake).
 
+## Recovery endpoints (temporary, off by default)
+
+A small read-only admin surface for the case where a workspace key is lost and
+drafts need to be found again. **It does not exist unless `RECOVERY_TOKEN` is
+set** to a secret of at least 16 characters; without it every
+`/api/recovery/*` route answers `404`. Unset the variable to remove the
+surface again.
+
+The token may be sent as `Authorization: Bearer <token>`, as a `?token=` query
+parameter, or as a `token` field in the JSON body. A wrong or missing token is
+`401`. `/api/recovery/*` is covered by the same per-IP rate limit as the rest
+of `/api/`.
+
+- `GET /api/recovery/drafts` → `{ ok, total_drafts, returned, hash_prefix_len,
+  include_payload, drafts: [...] }`. Each entry reports `tax_year`,
+  `updated_at`, `trip_count`, `countries`, `earliest_date`, `latest_date`,
+  `comment_count`, `comments_preview` (up to 5 comments, 80 chars each),
+  `payload_bytes`, and `access_code_hash_prefix` — the **first 12 characters
+  only**. The full `access_code_hash` is never returned, and the plaintext
+  access code is not in the database at all, so it cannot be recovered.
+  - Optional: `tax_year=`, `hash_prefix=` (6–64 hex chars), `limit=`
+    (default 100, max 500), `include_payload=1` to also return the stored
+    payload.
+- `POST /api/recovery/copy` with body
+  `{ source_hash_prefix, target_access_code, tax_year, overwrite? }` →
+  copies the payload from the matching draft onto `sha256(target_access_code)`
+  for the same tax year, leaving the source row untouched. This is how a
+  visible draft gets restored into the workspace key the user's browser
+  currently holds. An ambiguous prefix is `409`, an unknown one `404`, and an
+  existing target row is `409` unless `overwrite=1` is sent.
+
+### Railway setup
+
+In the Railway service → **Variables**, add:
+
+```
+RECOVERY_TOKEN=<a long random secret, 16+ chars>
+```
+
+Generate one locally with `openssl rand -hex 32`. Railway redeploys the
+service on variable changes. When the recovery work is finished, **delete the
+variable** — the endpoints disappear on the next deploy. Never commit the
+token; it lives only in Railway's variable store.
+
+### Example requests
+
+```bash
+BASE=https://<your-app>.up.railway.app
+TOKEN=<the RECOVERY_TOKEN value>
+
+# What is in the database at all?
+curl -s -H "Authorization: Bearer $TOKEN" "$BASE/api/recovery/drafts" | jq
+
+# Narrow to one tax year
+curl -s -H "Authorization: Bearer $TOKEN" "$BASE/api/recovery/drafts?tax_year=2026" | jq
+
+# Inspect one candidate in full before restoring it
+curl -s -H "Authorization: Bearer $TOKEN" \
+  "$BASE/api/recovery/drafts?hash_prefix=1a2b3c4d5e6f&include_payload=1" | jq
+
+# Restore that draft onto the key the browser currently holds
+curl -s -X POST -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+  -d '{"source_hash_prefix":"1a2b3c4d5e6f","target_access_code":"<current workspace key>","tax_year":2026}' \
+  "$BASE/api/recovery/copy" | jq
+```
+
+The current workspace key is in the browser's `cyprus60_workspace` cookie (and
+in the private link the UI can copy). After a successful copy, reload the page
+— the normal cloud load picks the restored payload up.
+
 ## Run locally
 
 ```bash
@@ -75,9 +147,9 @@ from the environment if set.
 npm test
 ```
 
-The smoke test boots the server against a temporary database, exercises
-`health`, `save`, `load`, validation failure and `delete`, then tears the
-database file down.
+`npm test` runs three suites in sequence: the API smoke test, the jsdom
+persistence tests, and the recovery-endpoint tests. Each boots the server
+against a temporary database and tears the file down afterwards.
 
 ## Deployment
 
