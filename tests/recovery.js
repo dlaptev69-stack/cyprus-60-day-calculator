@@ -361,6 +361,18 @@ async function phaseEnabled() {
       replaced.payload.trips.length === 1 && replaced.payload.trips[0].trip_country === "Georgia",
       JSON.stringify(replaced.payload.trips),
     );
+
+    // An admin copy is itself an overwrite, so it must leave the clobbered
+    // payload in the target's own history — reversible by the user, no token.
+    check("an overwriting copy reports the version it archived", Number.isInteger(forced.archived_version_id), JSON.stringify(forced));
+    const targetHistory = await fetch(
+      `${base}/api/draft/versions?access_code=${encodeURIComponent(RECOVER_CODE)}&tax_year=${YEAR}`,
+    ).then((r) => r.json());
+    check(
+      "the overwritten target payload is restorable from the version history",
+      targetHistory.versions.some((v) => v.source === "recovery_copy" && v.trip_count === 3),
+      JSON.stringify(targetHistory.versions.map((v) => [v.source, v.trip_count])),
+    );
   } finally {
     await close(server);
   }
