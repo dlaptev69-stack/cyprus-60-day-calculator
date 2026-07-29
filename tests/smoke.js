@@ -147,6 +147,10 @@ const server = app.listen(0, "127.0.0.1", async () => {
       appJsText.includes("scheduleAutosave") && appJsText.includes("AUTOSAVE_DEBOUNCE_MS"),
     );
     check(
+      "frontend gates autosave until the initial cloud load resolves",
+      appJsText.includes("autosaveArmed") && /if \(!autosaveArmed\) return;/.test(appJsText),
+    );
+    check(
       "frontend parses workspace from URL hash for cross-device handoff",
       appJsText.includes("parseHashWorkspace") && appJsText.includes("workspace"),
     );

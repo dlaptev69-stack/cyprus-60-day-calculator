@@ -747,6 +747,10 @@
   // Suppress autosave while we programmatically populate the form (samples,
   // cloud load). Otherwise loading a draft would immediately re-save it.
   let suppressAutosave = false;
+  // Autosave stays disarmed until we know what the cloud holds for this
+  // workspace. Saving before the initial load resolves would POST the blank
+  // startup form over an existing draft and destroy the user's trips.
+  let autosaveArmed = false;
   let workspaceKey = null;
 
   function generateWorkspaceKey() {
@@ -832,6 +836,7 @@
 
   function scheduleAutosave(opts = {}) {
     if (suppressAutosave) return;
+    if (!autosaveArmed) return;
     if (!workspaceKey) return;
     if (!getTaxYear()) return;
     if (autosaveTimer) clearTimeout(autosaveTimer);
@@ -914,13 +919,14 @@
       const res = await fetch(url, { headers: { "Accept": "application/json" } });
       const data = await res.json();
       if (!res.ok || !data.ok) {
-        setCloudStatus("error", `Не удалось загрузить: ${data.error || res.statusText}`);
+        setCloudStatus("error", `Не удалось загрузить: ${data.error || res.statusText}. Автосохранение приостановлено, чтобы не затереть сохранённый черновик — обнови страницу.`);
         return;
       }
       if (!data.found) {
         // No draft yet — that is the normal first-visit state. Sit silently in
         // "ready to autosave" mode so the form looks clean.
         lastAutosaveSig = JSON.stringify(buildPayload());
+        autosaveArmed = true;
         setCloudStatus("idle", "Автосохранение включено");
         refreshAdvancedPanel();
         return;
@@ -930,12 +936,13 @@
       runCalc();
       window._suppressScroll = false;
       lastSavedAt = data.updated_at;
+      autosaveArmed = true;
       writeWorkspaceCookie(workspaceKey, year);
       const prefix = opts.fromLink ? "Загружено по приватной ссылке" : "Загружено";
       setCloudStatus("ok", `${prefix} · обновлено ${formatStamp(data.updated_at)}`);
       refreshAdvancedPanel();
     } catch (err) {
-      setCloudStatus("error", `Сеть недоступна или сервер не отвечает: ${err.message}`);
+      setCloudStatus("error", `Сеть недоступна или сервер не отвечает: ${err.message}. Автосохранение приостановлено, чтобы не затереть сохранённый черновик — обнови страницу.`);
     }
   }
 
@@ -992,6 +999,7 @@
     currentResult = null;
     suppressAutosave = false;
     lastAutosaveSig = JSON.stringify(buildPayload());
+    autosaveArmed = true;
     setCloudStatus("ok", "Рабочее пространство сброшено. Новый ключ создан, автосохранение продолжит работу.");
     refreshAdvancedPanel();
   }
@@ -1111,6 +1119,8 @@
     workspaceKey = generateWorkspaceKey();
     writeWorkspaceCookie(workspaceKey, getTaxYear() || new Date().getFullYear());
     lastAutosaveSig = JSON.stringify(buildPayload());
+    // Freshly minted key: no cloud draft can exist under it, so nothing to lose.
+    autosaveArmed = true;
     setCloudStatus("idle", "Автосохранение включено. Начни заполнять — данные уйдут в облако автоматически.");
     refreshAdvancedPanel();
   })();
