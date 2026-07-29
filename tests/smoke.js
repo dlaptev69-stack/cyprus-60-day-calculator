@@ -116,16 +116,24 @@ const server = app.listen(0, "127.0.0.1", async () => {
       indexText.includes("Автосохранение включено"),
     );
     check(
-      "index has private-link copy action",
-      indexText.includes("Скопировать приватную ссылку"),
+      "index offers the trip archive in Russian",
+      indexText.includes("Архив поездок"),
     );
     check(
-      "index has cloud explainer about private link",
-      indexText.includes("Ссылку никому не пересылай"),
+      "index explains the list is stored on the server for this calculator",
+      indexText.includes("хранится на сервере калькулятора"),
+    );
+    check(
+      "index no longer offers a private link",
+      !indexText.includes("Скопировать приватную ссылку") && !indexText.includes("приватную ссылку"),
     );
     check(
       "manual access-code input is removed from the UI",
       !indexText.includes('id="cloud_access_code"'),
+    );
+    check(
+      "index has a login screen for the optional password",
+      indexText.includes('id="app-lock-form"'),
     );
 
     const appJsText = await (await fetch(`${base}/app.js`)).text();
@@ -135,28 +143,32 @@ const server = app.listen(0, "127.0.0.1", async () => {
       !/\b(localStorage|sessionStorage|indexedDB)\s*(?:\.|\[|\()/.test(appJsText),
     );
     check(
-      "frontend auto-generates a workspace key with crypto.getRandomValues",
-      appJsText.includes("generateWorkspaceKey") && appJsText.includes("crypto.getRandomValues"),
+      "frontend talks to the shared default profile",
+      appJsText.includes("/api/default-draft"),
     );
     check(
-      "frontend uses cookie-based workspace store (not localStorage)",
-      appJsText.includes("WORKSPACE_COOKIE") && appJsText.includes("document.cookie"),
+      "frontend never sends an access_code",
+      !appJsText.includes("access_code"),
     );
     check(
-      "frontend has debounced cloud autosave",
+      "frontend keeps no workspace key or cookie of its own",
+      !appJsText.includes("WORKSPACE_COOKIE") && !appJsText.includes("document.cookie"),
+    );
+    check(
+      "frontend has debounced autosave",
       appJsText.includes("scheduleAutosave") && appJsText.includes("AUTOSAVE_DEBOUNCE_MS"),
     );
     check(
-      "frontend parses workspace from URL hash for cross-device handoff",
-      appJsText.includes("parseHashWorkspace") && appJsText.includes("workspace"),
+      "frontend gates autosave until the initial load resolves",
+      appJsText.includes("autosaveArmed") && /if \(!autosaveArmed\) return;/.test(appJsText),
     );
     check(
-      "frontend strips workspace key from the visible URL after import",
-      appJsText.includes("stripWorkspaceFromUrl"),
+      "frontend can list and restore archived versions",
+      appJsText.includes("/api/default-draft/versions") && appJsText.includes("/api/default-draft/restore"),
     );
     check(
-      "frontend builds a private link with workspace + year in hash",
-      appJsText.includes("buildPrivateLink"),
+      "frontend exchanges the password for a server-set session",
+      appJsText.includes("/api/auth/login") && appJsText.includes("/api/auth/status"),
     );
 
     const stylesRes = await fetch(`${base}/styles.css`);

@@ -2,11 +2,11 @@
   "name": "cyprus-60-day-calculator",
   "version": "2.0.0",
   "private": true,
-  "description": "Cyprus 60-day tax residency calculator with cloud-backed draft storage for Nadya.",
+  "description": "Cyprus 60-day tax residency calculator with a shared server-side trip list for Nadya.",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "test": "node tests/smoke.js"
+    "test": "node tests/smoke.js && node tests/persistence.js && node tests/default-profile.js && node tests/versions.js && node tests/recovery.js"
   },
   "dependencies": {
     "better-sqlite3": "^12.0.0",
@@ -15,5 +15,8 @@
   },
   "engines": {
     "node": ">=18"
+  },
+  "devDependencies": {
+    "jsdom": "^29.1.1"
   }
 }

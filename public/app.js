@@ -724,115 +724,36 @@
   $("#copy-report").addEventListener("click", copyReport);
   $("#print-report").addEventListener("click", printReport);
 
-  // -------- Cloud sync (no localStorage / sessionStorage / indexedDB) --------
+  // -------- Server sync (no localStorage / sessionStorage / indexedDB) -------
   //
-  // Trip data lives only in cloud SQLite. This browser stores ONLY a
-  // workspace key + tax_year in a cookie. The workspace key is auto-generated
-  // on first visit with crypto.getRandomValues — the user never sees or types
-  // it. The same key is used as the backend access_code for every autosave
-  // and auto-load.
+  // There is exactly one trip list, and it lives on the server. The browser
+  // sends no identifier at all: /api/default-draft resolves the shared profile
+  // server-side, so opening the bare URL on any device shows the same trips and
+  // no access code is ever present in this file or in a link.
   //
-  // Cross-device access: "Скопировать приватную ссылку" produces a URL whose
-  // hash carries the workspace key + year. Opening that URL on a new device
-  // imports the key into a cookie there and auto-loads the same cloud draft.
-  // The hash is never sent in HTTP requests, so it stays out of server logs.
-  const WORKSPACE_KEY_LEN = 32; // 32 chars of base32 alphabet, well above 8-char backend min
-  const WORKSPACE_COOKIE = "cyprus60_workspace";
-  const COOKIE_MAX_AGE_DAYS = 365;
+  // The only cookie this app can hold is the httpOnly session set by the server
+  // when APP_ACCESS_PASSWORD is configured, which JS cannot read.
   const AUTOSAVE_DEBOUNCE_MS = 1000;
 
   let autosaveTimer = null;
   let lastAutosaveSig = "";
   let lastSavedAt = null;
   // Suppress autosave while we programmatically populate the form (samples,
-  // cloud load). Otherwise loading a draft would immediately re-save it.
+  // server load). Otherwise loading a draft would immediately re-save it.
   let suppressAutosave = false;
-  let workspaceKey = null;
-
-  function generateWorkspaceKey() {
-    // base32-like alphabet (no padding, easy to embed in a URL)
-    const alphabet = "abcdefghijkmnopqrstuvwxyz23456789";
-    const bytes = new Uint8Array(WORKSPACE_KEY_LEN);
-    crypto.getRandomValues(bytes);
-    let out = "";
-    for (let i = 0; i < bytes.length; i++) out += alphabet[bytes[i] % alphabet.length];
-    return out;
-  }
+  // Autosave stays disarmed until we know what the server holds. Saving before
+  // the initial load resolves would POST the blank startup form over the stored
+  // list and destroy the user's trips.
+  let autosaveArmed = false;
 
   function getTaxYear() {
     const n = Number($("#tax_year").value);
     return Number.isInteger(n) ? n : null;
   }
 
-  function writeWorkspaceCookie(key, year) {
-    if (!key || !year) return;
-    const value = encodeURIComponent(JSON.stringify({ key, year }));
-    const maxAge = COOKIE_MAX_AGE_DAYS * 24 * 60 * 60;
-    const secure = location.protocol === "https:" ? "; Secure" : "";
-    document.cookie = `${WORKSPACE_COOKIE}=${value}; Path=/; Max-Age=${maxAge}; SameSite=Lax${secure}`;
-  }
-
-  function clearWorkspaceCookie() {
-    const secure = location.protocol === "https:" ? "; Secure" : "";
-    document.cookie = `${WORKSPACE_COOKIE}=; Path=/; Max-Age=0; SameSite=Lax${secure}`;
-  }
-
-  function readWorkspaceCookie() {
-    const raw = document.cookie.split("; ").find((c) => c.startsWith(WORKSPACE_COOKIE + "="));
-    if (!raw) return null;
-    try {
-      const parsed = JSON.parse(decodeURIComponent(raw.split("=").slice(1).join("=")));
-      if (typeof parsed.key === "string" && parsed.key.length >= 8 && Number.isInteger(parsed.year)) {
-        return parsed;
-      }
-    } catch (_) {
-      // fall through
-    }
-    return null;
-  }
-
-  function parseHashWorkspace() {
-    // Accept #workspace=...&year=... (preferred) or ?workspace=...&year=...
-    const fromHash = () => {
-      const h = location.hash.replace(/^#/, "");
-      if (!h) return null;
-      const params = new URLSearchParams(h);
-      const key = params.get("workspace");
-      const yearRaw = params.get("year");
-      if (!key) return null;
-      const year = Number(yearRaw);
-      return { key, year: Number.isInteger(year) ? year : null };
-    };
-    const fromQuery = () => {
-      const params = new URLSearchParams(location.search);
-      const key = params.get("workspace");
-      const yearRaw = params.get("year");
-      if (!key) return null;
-      const year = Number(yearRaw);
-      return { key, year: Number.isInteger(year) ? year : null };
-    };
-    return fromHash() || fromQuery();
-  }
-
-  function stripWorkspaceFromUrl() {
-    try {
-      const url = new URL(location.href);
-      const hashParams = new URLSearchParams(url.hash.replace(/^#/, ""));
-      hashParams.delete("workspace");
-      hashParams.delete("year");
-      const newHash = hashParams.toString();
-      url.hash = newHash ? `#${newHash}` : "";
-      url.searchParams.delete("workspace");
-      url.searchParams.delete("year");
-      history.replaceState(null, "", url.toString());
-    } catch (_) {
-      // best-effort only
-    }
-  }
-
   function scheduleAutosave(opts = {}) {
     if (suppressAutosave) return;
-    if (!workspaceKey) return;
+    if (!autosaveArmed) return;
     if (!getTaxYear()) return;
     if (autosaveTimer) clearTimeout(autosaveTimer);
     const delay = opts.immediate ? 0 : AUTOSAVE_DEBOUNCE_MS;
@@ -901,27 +822,31 @@
     suppressAutosave = false;
   }
 
-  async function cloudLoad(opts = {}) {
-    if (!workspaceKey) return;
+  async function cloudLoad() {
     const year = getTaxYear();
     if (!year) {
       setCloudStatus("error", "Налоговый год заполнен некорректно.");
       return;
     }
-    setCloudStatus("busy", "Загружаю данные из облака…");
+    setCloudStatus("busy", "Загружаю данные с сервера…");
     try {
-      const url = `/api/draft?access_code=${encodeURIComponent(workspaceKey)}&tax_year=${encodeURIComponent(year)}`;
+      const url = `/api/default-draft?tax_year=${encodeURIComponent(year)}`;
       const res = await fetch(url, { headers: { "Accept": "application/json" } });
       const data = await res.json();
+      if (res.status === 401 || data.auth_required) {
+        showLock("Сессия истекла. Введи пароль ещё раз.");
+        return;
+      }
       if (!res.ok || !data.ok) {
-        setCloudStatus("error", `Не удалось загрузить: ${data.error || res.statusText}`);
+        setCloudStatus("error", `Не удалось загрузить: ${data.error || res.statusText}. Автосохранение приостановлено, чтобы не затереть сохранённый список — обнови страницу.`);
         return;
       }
       if (!data.found) {
-        // No draft yet — that is the normal first-visit state. Sit silently in
-        // "ready to autosave" mode so the form looks clean.
+        // Nothing stored for this year yet — the normal empty state. Sit
+        // silently in "ready to autosave" mode so the form looks clean.
         lastAutosaveSig = JSON.stringify(buildPayload());
-        setCloudStatus("idle", "Автосохранение включено");
+        autosaveArmed = true;
+        setCloudStatus("idle", "Автосохранение включено · список хранится на сервере");
         refreshAdvancedPanel();
         return;
       }
@@ -930,35 +855,38 @@
       runCalc();
       window._suppressScroll = false;
       lastSavedAt = data.updated_at;
-      writeWorkspaceCookie(workspaceKey, year);
-      const prefix = opts.fromLink ? "Загружено по приватной ссылке" : "Загружено";
-      setCloudStatus("ok", `${prefix} · обновлено ${formatStamp(data.updated_at)}`);
+      autosaveArmed = true;
+      setCloudStatus("ok", `Загружено с сервера · обновлено ${formatStamp(data.updated_at)}`);
       refreshAdvancedPanel();
     } catch (err) {
-      setCloudStatus("error", `Сеть недоступна или сервер не отвечает: ${err.message}`);
+      setCloudStatus("error", `Сеть недоступна или сервер не отвечает: ${err.message}. Автосохранение приостановлено, чтобы не затереть сохранённый список — обнови страницу.`);
     }
   }
 
   async function cloudSave(opts = {}) {
-    if (!workspaceKey) return;
     const payload = buildPayload();
-    const year = getTaxYear();
     setCloudStatus("busy", "Сохраняю…");
     try {
-      const res = await fetch("/api/draft", {
+      const res = await fetch("/api/default-draft", {
         method: "POST",
         headers: { "Content-Type": "application/json", "Accept": "application/json" },
-        body: JSON.stringify({ access_code: workspaceKey, payload }),
+        body: JSON.stringify({ payload }),
       });
       const data = await res.json();
+      if (res.status === 401 || data.auth_required) {
+        // Disarm: without a session the POST would keep failing, and a later
+        // success must not be built on a stale baseline.
+        autosaveArmed = false;
+        showLock("Сессия истекла. Введи пароль ещё раз.");
+        return;
+      }
       if (!res.ok || !data.ok) {
         setCloudStatus("error", `Ошибка сохранения: ${data.error || res.statusText}`);
         return;
       }
       lastAutosaveSig = JSON.stringify(payload);
       lastSavedAt = data.updated_at;
-      if (year) writeWorkspaceCookie(workspaceKey, year);
-      const prefix = opts.autosave ? "Сохранено" : "Сохранено вручную";
+      const prefix = opts.autosave ? "Сохранено на сервере" : "Сохранено вручную";
       setCloudStatus("ok", `${prefix} · ${formatStamp(data.updated_at)}`);
       refreshAdvancedPanel();
     } catch (err) {
@@ -966,23 +894,13 @@
     }
   }
 
-  async function cloudResetWorkspace() {
-    if (!workspaceKey) return;
-    const year = getTaxYear();
-    if (!confirm("Удалить облачный черновик и выпустить новый приватный ключ? Старая приватная ссылка перестанет работать.")) {
+  // Clears the shared list. Deliberately a normal save of an empty payload
+  // rather than a delete: the server archives the outgoing list first, so this
+  // stays reversible from "Архив поездок".
+  async function clearTripList() {
+    if (!confirm("Очистить список поездок? Прежний список сохранится в «Архиве поездок», его можно будет вернуть.")) {
       return;
     }
-    setCloudStatus("busy", "Удаляю облачный черновик…");
-    try {
-      const url = `/api/draft?access_code=${encodeURIComponent(workspaceKey)}&tax_year=${encodeURIComponent(year)}`;
-      await fetch(url, { method: "DELETE", headers: { "Accept": "application/json" } });
-    } catch (_) {
-      // ignore — proceed with key rotation either way
-    }
-    // Issue a fresh workspace key, clear the form, persist baseline.
-    workspaceKey = generateWorkspaceKey();
-    if (year) writeWorkspaceCookie(workspaceKey, year);
-    lastSavedAt = null;
     suppressAutosave = true;
     clearTrips();
     makeRow();
@@ -991,41 +909,234 @@
     resultsSection.classList.remove("shown");
     currentResult = null;
     suppressAutosave = false;
-    lastAutosaveSig = JSON.stringify(buildPayload());
-    setCloudStatus("ok", "Рабочее пространство сброшено. Новый ключ создан, автосохранение продолжит работу.");
-    refreshAdvancedPanel();
+    await cloudSave({});
+    if (!$("#cloud-history")?.hasAttribute("hidden")) loadHistory();
   }
 
-  function buildPrivateLink() {
-    const year = getTaxYear() ?? new Date().getFullYear();
-    const params = new URLSearchParams();
-    params.set("workspace", workspaceKey);
-    params.set("year", String(year));
-    const base = `${location.origin}${location.pathname}`;
-    return `${base}#${params.toString()}`;
+  // -------- Version history / restore --------
+  //
+  // The backend archives the outgoing payload on every draft overwrite, so an
+  // accidental clobber is reversible from here instead of needing a DB dig.
+  // Everything is rendered with textContent: version summaries echo back trip
+  // countries and comments the user typed, which must never become markup.
+  const HISTORY_PAGE_SIZE = 20;
+  let historyBusy = false;
+
+  function pluralRu(n, one, few, many) {
+    const mod100 = Math.abs(n) % 100;
+    const mod10 = mod100 % 10;
+    if (mod100 >= 11 && mod100 <= 14) return many;
+    if (mod10 === 1) return one;
+    if (mod10 >= 2 && mod10 <= 4) return few;
+    return many;
   }
 
-  async function copyPrivateLink() {
-    if (!workspaceKey) return;
-    const link = buildPrivateLink();
-    try {
-      if (navigator.clipboard && window.isSecureContext) {
-        await navigator.clipboard.writeText(link);
-      } else {
-        const ta = document.createElement("textarea");
-        ta.value = link;
-        ta.setAttribute("readonly", "");
-        ta.style.position = "fixed";
-        ta.style.left = "-9999px";
-        document.body.appendChild(ta);
-        ta.select();
-        document.execCommand("copy");
-        ta.remove();
-      }
-      setCloudStatus("ok", "Приватная ссылка скопирована. Открой её на другом устройстве — данные подтянутся автоматически. Никому не пересылай.");
-    } catch (err) {
-      setCloudStatus("error", `Не удалось скопировать ссылку: ${err.message}. Скопируй вручную: ${link}`);
+  function describeVersion(entry) {
+    const parts = [`${entry.trip_count} ${pluralRu(entry.trip_count, "поездка", "поездки", "поездок")}`];
+    if (entry.countries && entry.countries.length) parts.push(entry.countries.join(", "));
+    if (entry.earliest_date && entry.latest_date) {
+      parts.push(entry.earliest_date === entry.latest_date
+        ? entry.earliest_date
+        : `${entry.earliest_date} — ${entry.latest_date}`);
     }
+    return parts.join(" · ");
+  }
+
+  function setHistoryStatus(message) {
+    const el = $("#cloud-history-status");
+    if (el) el.textContent = message;
+  }
+
+  function historyEntryNode(entry, { current }) {
+    const li = document.createElement("li");
+    li.className = current ? "cloud-history-item is-current" : "cloud-history-item";
+    if (!current) li.dataset.versionId = String(entry.version_id);
+
+    const meta = document.createElement("div");
+    meta.className = "cloud-history-meta";
+
+    const when = document.createElement("span");
+    when.className = "cloud-history-when";
+    const stamp = formatStamp(current ? entry.updated_at : entry.saved_at);
+    when.textContent = current ? `Текущая версия · ${stamp}` : stamp;
+    meta.appendChild(when);
+
+    const facts = document.createElement("span");
+    facts.className = "cloud-history-facts";
+    facts.textContent = describeVersion(entry);
+    meta.appendChild(facts);
+
+    if (entry.comments_preview && entry.comments_preview.length) {
+      const comments = document.createElement("span");
+      comments.className = "cloud-history-comments";
+      comments.textContent = `Комментарии: ${entry.comments_preview.join("; ")}`;
+      meta.appendChild(comments);
+    }
+
+    li.appendChild(meta);
+
+    if (!current) {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "btn btn-ghost cloud-history-restore";
+      btn.dataset.versionId = String(entry.version_id);
+      btn.dataset.when = stamp;
+      btn.setAttribute("data-testid", `button-restore-version-${entry.version_id}`);
+      btn.textContent = "Восстановить";
+      li.appendChild(btn);
+    }
+    return li;
+  }
+
+  function renderHistory(data) {
+    const list = $("#cloud-history-list");
+    if (!list) return;
+    list.textContent = "";
+    if (data.current) list.appendChild(historyEntryNode(data.current, { current: true }));
+    for (const entry of data.versions) list.appendChild(historyEntryNode(entry, { current: false }));
+    if (!data.versions.length) {
+      setHistoryStatus(
+        data.current
+          ? "Предыдущих версий пока нет — черновик ещё не перезаписывался."
+          : "В облаке пока нет сохранённого черновика для этого года.",
+      );
+    } else {
+      const shown = data.versions.length;
+      const total = data.total_versions;
+      const tail = total > shown ? ` (показаны последние ${shown} из ${total})` : "";
+      setHistoryStatus(`Доступно версий для восстановления: ${total}${tail}.`);
+    }
+  }
+
+  async function loadHistory() {
+    if (historyBusy) return;
+    const year = getTaxYear();
+    if (!year) {
+      setHistoryStatus("Сначала укажи корректный налоговый год.");
+      return;
+    }
+    historyBusy = true;
+    setHistoryStatus("Загружаю архив…");
+    try {
+      const url = `/api/default-draft/versions?tax_year=${encodeURIComponent(year)}&limit=${HISTORY_PAGE_SIZE}`;
+      const res = await fetch(url, { headers: { "Accept": "application/json" } });
+      const data = await res.json();
+      if (res.status === 401 || data.auth_required) {
+        showLock("Сессия истекла. Введи пароль ещё раз.");
+        return;
+      }
+      if (!res.ok || !data.ok) {
+        setHistoryStatus(`Не удалось загрузить архив: ${data.error || res.statusText}`);
+        return;
+      }
+      renderHistory(data);
+    } catch (err) {
+      setHistoryStatus(`Не удалось загрузить архив: сеть недоступна (${err.message})`);
+    } finally {
+      historyBusy = false;
+    }
+  }
+
+  async function restoreVersion(versionId, whenLabel) {
+    if (historyBusy) return;
+    const year = getTaxYear();
+    if (!year) return;
+    if (!confirm(`Восстановить версию от ${whenLabel}? Текущие данные не потеряются — они уйдут в архив, и их можно будет вернуть обратно.`)) {
+      return;
+    }
+    historyBusy = true;
+    setCloudStatus("busy", "Восстанавливаю версию…");
+    try {
+      const res = await fetch("/api/default-draft/restore", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "Accept": "application/json" },
+        body: JSON.stringify({ tax_year: year, version_id: versionId }),
+      });
+      const data = await res.json();
+      if (res.status === 401 || data.auth_required) {
+        showLock("Сессия истекла. Введи пароль ещё раз.");
+        return;
+      }
+      if (!res.ok || !data.ok) {
+        setCloudStatus("error", `Не удалось восстановить версию: ${data.error || res.statusText}`);
+        return;
+      }
+      // applyPayloadToUI resyncs the autosave baseline, so hydrating the
+      // restored draft does not immediately POST it straight back.
+      applyPayloadToUI(data.payload);
+      window._suppressScroll = true;
+      runCalc();
+      window._suppressScroll = false;
+      lastSavedAt = data.updated_at;
+      // The restore round-trip proves what the server holds, so autosave is
+      // safe to arm even if the initial load had failed.
+      autosaveArmed = true;
+      setCloudStatus("ok", `Восстановлена версия от ${whenLabel} · сохранено ${formatStamp(data.updated_at)}`);
+      refreshAdvancedPanel();
+    } catch (err) {
+      setCloudStatus("error", `Не удалось восстановить версию: сеть недоступна (${err.message})`);
+    } finally {
+      historyBusy = false;
+    }
+    loadHistory();
+  }
+
+  // -------- Optional password gate --------
+  //
+  // Only shown when the server reports password_required. The password is
+  // posted once and exchanged for an httpOnly cookie this script cannot read,
+  // so no credential is ever held in frontend state.
+
+  function showLock(message) {
+    const lock = $("#app-lock");
+    if (!lock) return;
+    autosaveArmed = false;
+    lock.removeAttribute("hidden");
+    const err = $("#app-lock-error");
+    if (err) err.textContent = message || "";
+    $("#app-lock-password")?.focus();
+  }
+
+  function hideLock() {
+    $("#app-lock")?.setAttribute("hidden", "");
+    const err = $("#app-lock-error");
+    if (err) err.textContent = "";
+  }
+
+  async function submitLogin(ev) {
+    ev.preventDefault();
+    const input = $("#app-lock-password");
+    const err = $("#app-lock-error");
+    if (!input) return;
+    if (err) err.textContent = "";
+    try {
+      const res = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "Accept": "application/json" },
+        body: JSON.stringify({ password: input.value }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.ok) {
+        if (err) err.textContent = res.status === 429
+          ? "Слишком много попыток. Попробуй позже."
+          : "Неверный пароль.";
+        return;
+      }
+      input.value = "";
+      hideLock();
+      cloudLoad();
+    } catch (e) {
+      if (err) err.textContent = `Сеть недоступна: ${e.message}`;
+    }
+  }
+
+  async function logout() {
+    try {
+      await fetch("/api/auth/logout", { method: "POST", headers: { "Accept": "application/json" } });
+    } catch (_) {
+      // Showing the lock is the point; a failed call still ends the session UI.
+    }
+    showLock("");
   }
 
   function formatStamp(iso) {
@@ -1040,8 +1151,9 @@
     }
   }
 
-  $("#cloud-copy-link")?.addEventListener("click", copyPrivateLink);
-  $("#cloud-reset-workspace")?.addEventListener("click", cloudResetWorkspace);
+  $("#app-lock-form")?.addEventListener("submit", submitLogin);
+  $("#cloud-logout")?.addEventListener("click", logout);
+  $("#cloud-clear-trips")?.addEventListener("click", clearTripList);
   $("#cloud-advanced-toggle")?.addEventListener("click", () => {
     const panel = $("#cloud-advanced");
     const btn = $("#cloud-advanced-toggle");
@@ -1055,6 +1167,27 @@
       panel.setAttribute("hidden", "");
       btn.setAttribute("aria-expanded", "false");
     }
+  });
+
+  $("#cloud-history-toggle")?.addEventListener("click", () => {
+    const panel = $("#cloud-history");
+    const btn = $("#cloud-history-toggle");
+    if (!panel || !btn) return;
+    if (panel.hasAttribute("hidden")) {
+      panel.removeAttribute("hidden");
+      btn.setAttribute("aria-expanded", "true");
+      loadHistory();
+    } else {
+      panel.setAttribute("hidden", "");
+      btn.setAttribute("aria-expanded", "false");
+    }
+  });
+  $("#cloud-history-refresh")?.addEventListener("click", () => loadHistory());
+  // Delegated: the list is rebuilt on every load.
+  $("#cloud-history-list")?.addEventListener("click", (ev) => {
+    const btn = ev.target.closest(".cloud-history-restore");
+    if (!btn) return;
+    restoreVersion(Number(btn.dataset.versionId), btn.dataset.when || "");
   });
 
   // Autosave triggers for non-trip controls: tax year, top-level selects,
@@ -1079,39 +1212,31 @@
     el.addEventListener("change", () => scheduleAutosave());
   }
 
-  $("#tax_year")?.addEventListener("input", () => {
-    if (workspaceKey && getTaxYear()) writeWorkspaceCookie(workspaceKey, getTaxYear());
-    refreshAdvancedPanel();
-  });
+  $("#tax_year")?.addEventListener("input", refreshAdvancedPanel);
 
-  // Initial state: one empty row, then bootstrap workspace.
+  // Initial state: one empty row, then load the shared list.
   makeRow();
 
-  (function bootstrapWorkspace() {
-    const fromUrl = parseHashWorkspace();
-    if (fromUrl && fromUrl.key && fromUrl.key.length >= 8) {
-      workspaceKey = fromUrl.key;
-      if (fromUrl.year) $("#tax_year").value = String(fromUrl.year);
-      writeWorkspaceCookie(workspaceKey, getTaxYear() || new Date().getFullYear());
-      stripWorkspaceFromUrl();
-      setCloudStatus("busy", "Открываю по приватной ссылке…");
-      cloudLoad({ fromLink: true });
-      return;
+  (async function bootstrap() {
+    setCloudStatus("busy", "Загружаю список поездок…");
+    let status = null;
+    try {
+      const res = await fetch("/api/auth/status", { headers: { "Accept": "application/json" } });
+      status = await res.json();
+    } catch (_) {
+      // Treat an unreachable status probe as "no password": cloudLoad reports
+      // the network failure properly and leaves autosave disarmed.
     }
-    const remembered = readWorkspaceCookie();
-    if (remembered && remembered.key) {
-      workspaceKey = remembered.key;
-      if (remembered.year) $("#tax_year").value = String(remembered.year);
-      setCloudStatus("busy", "Загружаю последний черновик…");
-      cloudLoad();
-      return;
+    if (status && status.password_required) {
+      $("#cloud-logout-item")?.removeAttribute("hidden");
+      if (!status.authenticated) {
+        setCloudStatus("idle", "Требуется вход");
+        showLock("");
+        return;
+      }
+    } else {
+      $("#cloud-open-warning")?.removeAttribute("hidden");
     }
-    // First visit on this device with no link — mint a fresh key, persist
-    // cookie, leave form empty, idle state.
-    workspaceKey = generateWorkspaceKey();
-    writeWorkspaceCookie(workspaceKey, getTaxYear() || new Date().getFullYear());
-    lastAutosaveSig = JSON.stringify(buildPayload());
-    setCloudStatus("idle", "Автосохранение включено. Начни заполнять — данные уйдут в облако автоматически.");
-    refreshAdvancedPanel();
+    cloudLoad();
   })();
 })();
