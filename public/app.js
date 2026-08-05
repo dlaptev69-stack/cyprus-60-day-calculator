@@ -2,7 +2,7 @@
 (function () {
   "use strict";
 
-  const { calculateCyprusResidency, SAMPLES } = window.CyprusCalc;
+  const { calculateCyprusResidency, SAMPLES, sortTripsByDate, compareTripsByDate } = window.CyprusCalc;
 
   const $ = (sel) => document.querySelector(sel);
   const $$ = (sel) => document.querySelectorAll(sel);
@@ -81,14 +81,64 @@
     nextRowId = 0;
   }
 
-  function getTripsFromUI() {
-    return Array.from(tripsBody.querySelectorAll("tr")).map((tr) => ({
+  function readTripRow(tr) {
+    return {
       trip_country: tr.querySelector(".trip-country").value.trim(),
       date_arrival: tr.querySelector(".trip-arrival").value.trim(),
       date_departure: tr.querySelector(".trip-departure").value.trim(),
       day_type: tr.querySelector(".trip-day-type").value,
       comment: tr.querySelector(".trip-comment").value.trim(),
-    })).filter((t) => t.trip_country || t.date_arrival || t.date_departure || t.comment);
+    };
+  }
+
+  // Always date-sorted, so every consumer (calculation, report, autosave and
+  // the cloud draft) sees the same chronological order. sortTripRowsInDom()
+  // keeps the visible rows in that same order, which is what lets
+  // renderTripDayCells map result.trip_index back onto table rows.
+  function getTripsFromUI() {
+    const trips = Array.from(tripsBody.querySelectorAll("tr"))
+      .map(readTripRow)
+      .filter((t) => t.trip_country || t.date_arrival || t.date_departure || t.comment);
+    return sortTripsByDate(trips);
+  }
+
+  // Reorders the visible trip rows by date using the same comparator as the
+  // payload. Rows are only moved when the order actually changes, and focus plus
+  // caret position are restored afterwards, so sorting never interrupts typing.
+  function sortTripRowsInDom() {
+    const rows = Array.from(tripsBody.querySelectorAll("tr"));
+    if (rows.length < 2) return false;
+    const sorted = rows
+      .map((tr, index) => ({ tr, index, trip: readTripRow(tr) }))
+      .sort((a, b) => compareTripsByDate(a.trip, b.trip) || a.index - b.index);
+    if (sorted.every((entry, index) => entry.tr === rows[index])) return false;
+
+    const active = document.activeElement;
+    const restore = active && tripsBody.contains(active) ? active : null;
+    let caret = null;
+    if (restore) {
+      try {
+        if (typeof restore.selectionStart === "number") {
+          caret = [restore.selectionStart, restore.selectionEnd];
+        }
+      } catch (_) {
+        // Date and number inputs throw on selection access — ignore.
+      }
+    }
+
+    const frag = document.createDocumentFragment();
+    for (const entry of sorted) frag.appendChild(entry.tr);
+    tripsBody.appendChild(frag);
+
+    if (restore) {
+      try {
+        restore.focus();
+        if (caret) restore.setSelectionRange(caret[0], caret[1]);
+      } catch (_) {
+        // Focus restore is a nicety, never a hard requirement.
+      }
+    }
+    return true;
   }
 
   function getActiveTripRows() {
@@ -156,12 +206,14 @@
     $("#has_cyprus_business_or_employment_or_directorship").value = p.has_cyprus_business_or_employment_or_directorship;
     $("#possible_tax_resident_elsewhere").value = p.possible_tax_resident_elsewhere;
     clearTrips();
-    for (const t of p.trips) makeRow(t);
+    for (const t of sortTripsByDate(p.trips)) makeRow(t);
     runCalc();
   }
 
   // -------- Calculation + render --------
   function runCalc() {
+    // Sort the table first so the rendered rows line up with result.trip_index.
+    sortTripRowsInDom();
     const payload = buildPayload();
     const result = calculateCyprusResidency(payload);
     currentResult = result;
@@ -719,7 +771,14 @@
   // Trigger autosave whenever the user edits trip rows (inputs/selects inside
   // the body). Delegated so newly added rows are covered.
   tripsBody.addEventListener("input", () => scheduleAutosave());
-  tripsBody.addEventListener("change", () => scheduleAutosave());
+  tripsBody.addEventListener("change", (ev) => {
+    // Re-sort as soon as a date field is committed. "change" rather than "input"
+    // so half-typed dates do not shuffle the table under the cursor.
+    if (ev.target && ev.target.classList && (ev.target.classList.contains("trip-arrival") || ev.target.classList.contains("trip-departure"))) {
+      sortTripRowsInDom();
+    }
+    scheduleAutosave();
+  });
 
   $("#copy-report").addEventListener("click", copyReport);
   $("#print-report").addEventListener("click", printReport);
@@ -810,7 +869,8 @@
       if (typeof s[k] === "boolean") $(sel).checked = s[k];
     }
     clearTrips();
-    const trips = Array.isArray(p.trips) ? p.trips : [];
+    // Server-loaded (or restored) data is sorted before it is displayed.
+    const trips = sortTripsByDate(p.trips);
     if (trips.length === 0) {
       makeRow();
     } else {
@@ -864,6 +924,8 @@
   }
 
   async function cloudSave(opts = {}) {
+    // Keep the table and the payload about to be stored in the same order.
+    sortTripRowsInDom();
     const payload = buildPayload();
     setCloudStatus("busy", "Сохраняю…");
     try {
