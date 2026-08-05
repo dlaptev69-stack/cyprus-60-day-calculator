@@ -17,6 +17,9 @@ const crypto = require("crypto");
 const express = require("express");
 const rateLimit = require("express-rate-limit");
 const Database = require("better-sqlite3");
+// The same ordering rule the frontend uses, so a draft is stored sorted even if
+// an older client (or a direct API call) sends trips out of order.
+const { sortTripsByDate } = require("./public/calc.js");
 
 const PORT = Number(process.env.PORT) || 5050;
 const HOST = process.env.HOST || "0.0.0.0";
@@ -580,8 +583,11 @@ function handleSave(res, hash, payload) {
   const err = validatePayload(payload);
   if (err) return res.status(400).json({ ok: false, error: err });
   const year = normalizeTaxYear(payload.tax_year);
+  const stored = Array.isArray(payload.trips)
+    ? { ...payload, trips: sortTripsByDate(payload.trips) }
+    : payload;
   const updatedAt = new Date().toISOString();
-  const result = saveDraft(hash, year, JSON.stringify(payload), updatedAt, "overwrite");
+  const result = saveDraft(hash, year, JSON.stringify(stored), updatedAt, "overwrite");
   res.json({
     ok: true,
     tax_year: year,

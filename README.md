@@ -23,6 +23,15 @@ JavaScript — no LLM is used for calculation.
 - **Version history** — every draft overwrite archives the payload it replaced
   in `draft_versions`, so an accidental clobber is reversible from the UI. See
   [Version history](#version-history-draft_versions).
+- **Deterministic trip order** — the trip list is always sorted ascending by
+  `date_arrival`, then `date_departure`, with a stable fallback that keeps the
+  original relative order for identical rows; rows with a missing or
+  unparseable arrival date sink to the end, so a freshly added blank row stays
+  at the bottom. `sortTripsByDate()` in `public/calc.js` is the single source of
+  that rule: the table sorts on server load, when a date field is committed and
+  before every calculation; the payload is sorted before it is autosaved; and
+  `handleSave()` sorts again server-side, so the stored cloud draft is sorted
+  even if an older client posts trips out of order. See `tests/sorting.js`.
 
 The browser does **not** use `localStorage`, `sessionStorage` or IndexedDB, and
 it holds no workspace key or cookie of its own — no trip data or identifier is
@@ -100,6 +109,10 @@ edit the trip list.
   restore, the password gate, and `POST /api/recovery/copy-to-default`.
 - `tests/versions.js` — draft version history: archiving on overwrite, dedupe,
   the retention cap, restore, workspace isolation, and `/api/health` reporting.
+- `tests/sorting.js` — trip ordering at all three layers: the `sortTripsByDate()`
+  comparator (out-of-order, equal, missing and unparseable dates),
+  server-side sorting on save, and the frontend (sorted on server load,
+  re-sorted when a date is edited, sorted in the autosaved payload).
 - `tests/recovery.js` — covers the temporary `/api/recovery/*` admin surface:
   disabled by default, token enforcement, summary shape, and payload copy.
 

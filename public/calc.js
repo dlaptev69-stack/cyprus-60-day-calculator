@@ -51,6 +51,51 @@ function formatDate(date) {
   return date.toISOString().slice(0, 10);
 }
 
+// -------- Deterministic trip ordering --------
+//
+// One ordering rule is used everywhere (table, calculation, report, saved cloud
+// payload) so the same trip list always looks and calculates the same way:
+//   1. ascending by date_arrival,
+//   2. then ascending by date_departure,
+//   3. then the original relative order (stable) for identical rows.
+// Rows with a missing or unparseable date sink to the end while keeping their
+// relative order, so a freshly added blank row stays at the bottom instead of
+// jumping to the top.
+function tripDateKey(value) {
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
+  return parseDate(trimmed) ? trimmed : null;
+}
+
+function compareTripsByDate(a, b) {
+  const aArrival = tripDateKey(a && a.date_arrival);
+  const bArrival = tripDateKey(b && b.date_arrival);
+  if (aArrival !== bArrival) {
+    if (aArrival === null) return 1;
+    if (bArrival === null) return -1;
+    // ISO YYYY-MM-DD strings compare lexicographically as they do chronologically.
+    return aArrival < bArrival ? -1 : 1;
+  }
+  const aDeparture = tripDateKey(a && a.date_departure);
+  const bDeparture = tripDateKey(b && b.date_departure);
+  if (aDeparture !== bDeparture) {
+    if (aDeparture === null) return 1;
+    if (bDeparture === null) return -1;
+    return aDeparture < bDeparture ? -1 : 1;
+  }
+  return 0;
+}
+
+// Returns a new array; the input is never mutated. The explicit index tiebreak
+// keeps the result stable regardless of the engine's sort implementation.
+function sortTripsByDate(trips) {
+  if (!Array.isArray(trips)) return [];
+  return trips
+    .map((trip, index) => ({ trip, index }))
+    .sort((a, b) => compareTripsByDate(a.trip, b.trip) || a.index - b.index)
+    .map((entry) => entry.trip);
+}
+
 function normalizeCountry(value) {
   if (!value || typeof value !== "string") return "unknown";
   const trimmed = value.trim();
@@ -114,7 +159,9 @@ function calculateCyprusResidency(input) {
   };
 
   const taxYear = Number(input.tax_year);
-  const trips = Array.isArray(input.trips) ? input.trips : [];
+  // Sorted up front so trip_index, the trips table and the report all follow
+  // the same chronological order even if the caller passed trips out of order.
+  const trips = sortTripsByDate(input.trips);
   const errors = [];
   const warnings = [];
   const disputedPeriods = [];
@@ -547,9 +594,16 @@ const SAMPLES = {
 
 // Expose to window for browser
 if (typeof window !== "undefined") {
-  window.CyprusCalc = { calculateCyprusResidency, SAMPLES, normalizeCountry, parseDate };
+  window.CyprusCalc = {
+    calculateCyprusResidency,
+    SAMPLES,
+    normalizeCountry,
+    parseDate,
+    sortTripsByDate,
+    compareTripsByDate,
+  };
 }
 // Also export for Node-based tests
 if (typeof module !== "undefined" && module.exports) {
-  module.exports = { calculateCyprusResidency, SAMPLES };
+  module.exports = { calculateCyprusResidency, SAMPLES, sortTripsByDate, compareTripsByDate };
 }

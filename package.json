@@ -6,7 +6,7 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "test": "node tests/smoke.js && node tests/persistence.js && node tests/default-profile.js && node tests/versions.js && node tests/recovery.js"
+    "test": "node tests/smoke.js && node tests/persistence.js && node tests/sorting.js && node tests/default-profile.js && node tests/versions.js && node tests/recovery.js"
   },
   "dependencies": {
     "better-sqlite3": "^12.0.0",
