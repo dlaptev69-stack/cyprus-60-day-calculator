@@ -20,7 +20,7 @@ const Database = require("better-sqlite3");
 const { namespaceMiddleware } = require("./lib/astravela.cjs");
 // The same ordering rule the frontend uses, so a draft is stored sorted even if
 // an older client (or a direct API call) sends trips out of order.
-const { sortTripsByDate } = require("./public/calc.js");
+const { mergeAdjacentTrips } = require("./public/calc.js");
 
 const PORT = Number(process.env.PORT) || 5050;
 const HOST = process.env.HOST || "0.0.0.0";
@@ -586,7 +586,7 @@ function handleSave(res, hash, payload) {
   if (err) return res.status(400).json({ ok: false, error: err });
   const year = normalizeTaxYear(payload.tax_year);
   const stored = Array.isArray(payload.trips)
-    ? { ...payload, trips: sortTripsByDate(payload.trips) }
+    ? { ...payload, trips: mergeAdjacentTrips(payload.trips, { tax_year: year, settings: payload.settings || {} }) }
     : payload;
   const updatedAt = new Date().toISOString();
   const result = saveDraft(hash, year, JSON.stringify(stored), updatedAt, "overwrite");

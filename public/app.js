@@ -2,7 +2,7 @@
 (function () {
   "use strict";
 
-  const { calculateCyprusResidency, SAMPLES, sortTripsByDate, compareTripsByDate } = window.CyprusCalc;
+  const { calculateCyprusResidency, SAMPLES, sortTripsByDate, compareTripsByDate, mergeAdjacentTrips, tryMergeTrips } = window.CyprusCalc;
 
   const $ = (sel) => document.querySelector(sel);
   const $$ = (sel) => document.querySelectorAll(sel);
@@ -141,6 +141,41 @@
     return true;
   }
 
+  // Joins neighbouring rows of the same country (rules in tryMergeTrips in
+  // calc.js). The earlier row keeps its place and takes the later departure and
+  // both comments; the later row is removed. Rows being edited right now are
+  // left alone so a join never pulls a field out from under the cursor; the
+  // server joins them on save anyway.
+  function mergeTripRowsInDom() {
+    const rows = Array.from(tripsBody.querySelectorAll("tr"));
+    if (rows.length < 2) return false;
+    const opts = { tax_year: getRootFromUI().tax_year, settings: getSettingsFromUI() };
+    const active = document.activeElement;
+    let changed = false;
+    let prev = rows[0];
+    for (let i = 1; i < rows.length; i++) {
+      const tr = rows[i];
+      const busy = active && (prev.contains(active) || tr.contains(active));
+      const joined = busy ? null : tryMergeTrips(readTripRow(prev), readTripRow(tr), opts);
+      if (joined) {
+        prev.querySelector(".trip-departure").value = joined.date_departure;
+        prev.querySelector(".trip-comment").value = joined.comment;
+        tr.remove();
+        changed = true;
+      } else {
+        prev = tr;
+      }
+    }
+    return changed;
+  }
+
+  // Date order first, then joins; used wherever the table is tidied.
+  function tidyTripRowsInDom() {
+    const sorted = sortTripRowsInDom();
+    const merged = mergeTripRowsInDom();
+    return sorted || merged;
+  }
+
   function getActiveTripRows() {
     return Array.from(tripsBody.querySelectorAll("tr")).filter((tr) => {
       const country = tr.querySelector(".trip-country").value.trim();
@@ -212,8 +247,8 @@
 
   // -------- Calculation + render --------
   function runCalc() {
-    // Sort the table first so the rendered rows line up with result.trip_index.
-    sortTripRowsInDom();
+    // Sort and join the table first so the rendered rows line up with result.trip_index.
+    tidyTripRowsInDom();
     const payload = buildPayload();
     const result = calculateCyprusResidency(payload);
     currentResult = result;
@@ -776,7 +811,7 @@
     // Re-sort as soon as a date field is committed. "change" rather than "input"
     // so half-typed dates do not shuffle the table under the cursor.
     if (ev.target && ev.target.classList && (ev.target.classList.contains("trip-arrival") || ev.target.classList.contains("trip-departure"))) {
-      sortTripRowsInDom();
+      tidyTripRowsInDom();
     }
     scheduleAutosave();
   });
@@ -870,8 +905,9 @@
       if (typeof s[k] === "boolean") $(sel).checked = s[k];
     }
     clearTrips();
-    // Server-loaded (or restored) data is sorted before it is displayed.
-    const trips = sortTripsByDate(p.trips);
+    // Server-loaded (or restored) data is sorted, and neighbouring rows of the
+    // same country joined, before it is displayed.
+    const trips = mergeAdjacentTrips(p.trips, { tax_year: p.tax_year, settings: p.settings || {} });
     if (trips.length === 0) {
       makeRow();
     } else {
@@ -926,7 +962,7 @@
 
   async function cloudSave(opts = {}) {
     // Keep the table and the payload about to be stored in the same order.
-    sortTripRowsInDom();
+    tidyTripRowsInDom();
     const payload = buildPayload();
     setCloudStatus("busy", "Сохраняю…");
     try {

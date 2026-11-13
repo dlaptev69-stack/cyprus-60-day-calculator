@@ -100,6 +100,85 @@ function sortTripsByDate(trips) {
     .map((entry) => entry.trip);
 }
 
+// ---- Joining adjacent rows of the same country -----------------------------
+//
+// Two neighbouring rows (in date order) are joined into one when they are the
+// same country and day type, both have valid dates, and the second starts on or
+// before the day the first ends. A join is only made when it changes nothing in
+// the calculation: the two rows and the joined row are counted with the same
+// settings and tax year, and must give the same days per country and the same
+// disputed periods. That keeps apart, for example, a same-day departure and
+// return to Cyprus, or rows with a gap between them. Comments are kept, joined
+// with "; ", and a join that would make the comment too long is skipped.
+const MERGE_COMMENT_MAX = 200;
+
+function joinComments(a, b) {
+  const parts = [];
+  for (const c of [a, b]) {
+    const pieces = typeof c === "string" ? c.split("; ") : [];
+    for (const piece of pieces) {
+      const t = piece.trim();
+      if (t && !parts.includes(t)) parts.push(t);
+    }
+  }
+  return parts.join("; ");
+}
+
+function countSignature(trips, opts) {
+  const year = Number(opts && opts.tax_year);
+  const r = calculateCyprusResidency({
+    tax_year: Number.isInteger(year) ? year : Number(String(trips[0].date_arrival).slice(0, 4)),
+    has_cyprus_home: "yes",
+    has_cyprus_business_or_employment_or_directorship: "yes",
+    possible_tax_resident_elsewhere: "no",
+    settings: (opts && opts.settings) || {},
+    trips,
+  });
+  if (r.errors.length) return null;
+  return JSON.stringify({
+    days: r.country_day_breakdown.map((e) => [e.country, e.days]),
+    disputed: r.disputed_or_incomplete_periods.map((d) => [d.reason, d.date || d.date_arrival || "", d.date_departure || ""]),
+  });
+}
+
+// Returns the joined row, or null when the two rows should stay separate.
+function tryMergeTrips(a, b, opts) {
+  if (!a || !b) return null;
+  const country = normalizeCountry(a.trip_country);
+  if (country === "unknown" || country !== normalizeCountry(b.trip_country)) return null;
+  if ((a.day_type || "unknown") !== (b.day_type || "unknown")) return null;
+  const aArr = tripDateKey(a.date_arrival);
+  const aDep = tripDateKey(a.date_departure);
+  const bArr = tripDateKey(b.date_arrival);
+  const bDep = tripDateKey(b.date_departure);
+  if (!aArr || !aDep || !bArr || !bDep) return null;
+  if (aDep < aArr || bDep < bArr) return null;
+  if (bArr > aDep) return null;
+  const comment = joinComments(a.comment, b.comment);
+  if (comment.length > MERGE_COMMENT_MAX) return null;
+  const joined = {
+    ...a,
+    date_departure: bDep > aDep ? bDep : aDep,
+    comment,
+  };
+  const before = countSignature([a, b], opts);
+  if (before === null || before !== countSignature([joined], opts)) return null;
+  return joined;
+}
+
+// Sorts by date, then joins neighbouring rows of the same country. Returns a new
+// array; the input is never mutated. opts: { tax_year, settings }.
+function mergeAdjacentTrips(trips, opts) {
+  const out = [];
+  for (const trip of sortTripsByDate(trips)) {
+    const prev = out[out.length - 1];
+    const joined = prev ? tryMergeTrips(prev, trip, opts) : null;
+    if (joined) out[out.length - 1] = joined;
+    else out.push(trip);
+  }
+  return out;
+}
+
 function normalizeCountry(value) {
   if (!value || typeof value !== "string") return "unknown";
   const trimmed = value.trim();
@@ -613,9 +692,11 @@ if (typeof window !== "undefined") {
     parseDate,
     sortTripsByDate,
     compareTripsByDate,
+    mergeAdjacentTrips,
+    tryMergeTrips,
   };
 }
 // Also export for Node-based tests
 if (typeof module !== "undefined" && module.exports) {
-  module.exports = { calculateCyprusResidency, SAMPLES, sortTripsByDate, compareTripsByDate };
+  module.exports = { calculateCyprusResidency, SAMPLES, sortTripsByDate, compareTripsByDate, mergeAdjacentTrips, tryMergeTrips };
 }
