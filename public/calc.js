@@ -226,6 +226,45 @@ function dedupeObjects(list) {
   });
 }
 
+// ---- Non-dom (SDC Law) -----------------------------------------------------
+//
+// Non-dom status needs, in the same tax year: Cyprus tax residency (183-day or
+// 60-day rule), a domicile of origin outside Cyprus, and fewer than 17 years of
+// Cyprus tax residency in the 20 years before the tax year. From 17 of 20 the
+// individual is deemed domiciled; since 2026 someone whose domicile of origin
+// is outside Cyprus may then buy up to two five-year extensions (EUR 250,000
+// each, Form TD 631, Article 3D of the SDC Law). A Cyprus domicile of origin
+// only allows non-dom under narrow exceptions, so it is sent to review.
+const NON_DOM_DEEMED_DOMICILE_YEARS = 17;
+
+function normalizePriorYears(value) {
+  if (value === undefined || value === null || value === "") return null;
+  const n = Number(value);
+  return Number.isInteger(n) && n >= 0 && n <= 20 ? n : null;
+}
+
+function assessNonDom(input, residencyStatus) {
+  const origin = input.cyprus_domicile_of_origin === "yes" || input.cyprus_domicile_of_origin === "no"
+    ? input.cyprus_domicile_of_origin
+    : "unknown";
+  const priorYears = normalizePriorYears(input.prior_cyprus_resident_years);
+  const deemedDomiciled = priorYears !== null && priorYears >= NON_DOM_DEEMED_DOMICILE_YEARS;
+  let status;
+  if (origin === "yes") status = "cyprus_origin_review";
+  else if (deemedDomiciled) status = "deemed_domiciled";
+  else if (origin === "unknown" || priorYears === null) status = "needs_data";
+  else if (residencyStatus === "likely does not qualify") status = "not_resident";
+  else if (residencyStatus === "likely qualifies") status = "likely_non_dom";
+  else status = "depends_on_residency";
+  return {
+    status,
+    domicile_of_origin_in_cyprus: origin,
+    prior_cyprus_resident_years: priorYears,
+    deemed_domiciled: deemedDomiciled,
+    extension_possible: deemedDomiciled && origin === "no",
+  };
+}
+
 function calculateCyprusResidency(input) {
   const settings = {
     arrival_day_counts_for_cyprus: true,
@@ -488,16 +527,23 @@ function calculateCyprusResidency(input) {
   // rule no longer requires that the individual is not tax resident in any
   // other state. The 183-day ceiling for any other single state still applies.
   const taxResidentElsewhereIsCondition = !(taxYear >= TAX_RESIDENT_ELSEWHERE_CONDITION_REMOVED_FROM);
+  // The 183-day rule stands on its own: more than 183 days in Cyprus in the
+  // calendar year makes the individual tax resident with no further conditions
+  // (no home, business or other-country test). The 60-day-rule questions then
+  // do not matter, so their warnings are not raised.
+  const residentBy183DayRule = errors.length === 0 && cyprusDaysOver183;
   if (input.possible_tax_resident_elsewhere !== "no") {
     warnings.push({
-      type: taxResidentElsewhereIsCondition ? "possible_tax_residency_elsewhere" : "dual_residency_tie_breaker",
+      type: residentBy183DayRule
+        ? "dual_residency_tie_breaker_183"
+        : taxResidentElsewhereIsCondition ? "possible_tax_residency_elsewhere" : "dual_residency_tie_breaker",
       value: input.possible_tax_resident_elsewhere,
     });
   }
-  if (input.has_cyprus_home !== "yes") {
+  if (!residentBy183DayRule && input.has_cyprus_home !== "yes") {
     warnings.push({ type: "cyprus_home_not_confirmed", value: input.has_cyprus_home });
   }
-  if (input.has_cyprus_business_or_employment_or_directorship !== "yes") {
+  if (!residentBy183DayRule && input.has_cyprus_business_or_employment_or_directorship !== "yes") {
     warnings.push({
       type: "cyprus_business_employment_or_directorship_not_confirmed",
       value: input.has_cyprus_business_or_employment_or_directorship,
@@ -505,7 +551,11 @@ function calculateCyprusResidency(input) {
   }
 
   let preliminaryStatus = "needs tax advisor review";
-  if (
+  let residencyRule = null;
+  if (residentBy183DayRule) {
+    preliminaryStatus = "likely qualifies";
+    residencyRule = "183";
+  } else if (
     errors.length === 0 &&
     cyprusDaysAtLeast60 &&
     !anyOtherCountryDaysOver183 &&
@@ -515,9 +565,12 @@ function calculateCyprusResidency(input) {
     disputedPeriods.length === 0
   ) {
     preliminaryStatus = "likely qualifies";
+    residencyRule = "60";
   } else if (!cyprusDaysAtLeast60 || anyOtherCountryDaysOver183) {
     preliminaryStatus = "likely does not qualify";
   }
+
+  const nonDom = assessNonDom(input, preliminaryStatus);
 
   return {
     tax_year: taxYear,
@@ -536,6 +589,8 @@ function calculateCyprusResidency(input) {
     ),
     possible_tax_residency_elsewhere: yesNoUnknown(input.possible_tax_resident_elsewhere),
     tax_resident_elsewhere_is_condition: taxResidentElsewhereIsCondition,
+    residency_rule: residencyRule,
+    non_dom: nonDom,
     preliminary_status: preliminaryStatus,
     warnings,
     errors,
@@ -698,5 +753,5 @@ if (typeof window !== "undefined") {
 }
 // Also export for Node-based tests
 if (typeof module !== "undefined" && module.exports) {
-  module.exports = { calculateCyprusResidency, SAMPLES, sortTripsByDate, compareTripsByDate, mergeAdjacentTrips, tryMergeTrips };
+  module.exports = { calculateCyprusResidency, SAMPLES, sortTripsByDate, compareTripsByDate, mergeAdjacentTrips, tryMergeTrips, assessNonDom };
 }

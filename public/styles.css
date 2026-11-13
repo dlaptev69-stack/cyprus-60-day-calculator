@@ -1035,6 +1035,19 @@ table.trips td input:focus, table.trips td select:focus {
   }
 }
 
+/* Non-dom */
+.nondom-card .grid { margin-bottom: 16px; }
+.nondom-status { margin: 4px 0 18px; }
+.nondom-grid { display: grid; gap: 18px; }
+@media (min-width: 900px) { .nondom-grid { grid-template-columns: 1fr 1fr; } }
+.nondom-card h3 { margin: 0 0 8px; }
+.nondom-grid h3 + .nondom-list { margin-top: 0; }
+.nondom-grid .nondom-list + h3 { margin-top: 16px; }
+.nondom-list { margin: 0; padding-left: 18px; color: var(--text-muted); font-size: 14px; line-height: 1.55; }
+.nondom-list li + li { margin-top: 4px; }
+.nondom-note { margin: 8px 0 0; color: var(--text-muted); font-size: 14px; line-height: 1.55; }
+.nondom-card .sources { margin-top: 16px; }
+
 /* Utility */
 .row-flex { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
 .spacer { flex: 1; }
