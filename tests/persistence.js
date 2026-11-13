@@ -67,7 +67,8 @@ function boot(base, url, { fetchMode = "normal", cookie } = {}) {
   win.fetch = (input, init = {}) => {
     const target = new win.URL(input, base).toString();
     const method = (init.method || "GET").toUpperCase();
-    const route = target.replace(base, "");
+    // Keep the same failure/delay simulation for the new namespace and legacy API.
+    const route = target.replace(base, "").replace(/^\/cyprus-denis(?=\/)/, "");
     requests.push(`${method} ${route}`);
     // Only the draft load itself, not the versions list that shares its prefix.
     const isDraftGet = method === "GET" && /^\/api\/default-draft\?/.test(route);

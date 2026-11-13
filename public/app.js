@@ -786,7 +786,7 @@
   // -------- Server sync (no localStorage / sessionStorage / indexedDB) -------
   //
   // There is exactly one trip list, and it lives on the server. The browser
-  // sends no identifier at all: /api/default-draft resolves the shared profile
+  // sends no identifier at all: /cyprus-denis/api/default-draft resolves the shared profile
   // server-side, so opening the bare URL on any device shows the same trips and
   // no access code is ever present in this file or in a link.
   //
@@ -890,7 +890,7 @@
     }
     setCloudStatus("busy", "Загружаю данные с сервера…");
     try {
-      const url = `/api/default-draft?tax_year=${encodeURIComponent(year)}`;
+      const url = `/cyprus-denis/api/default-draft?tax_year=${encodeURIComponent(year)}`;
       const res = await fetch(url, { headers: { "Accept": "application/json" } });
       const data = await res.json();
       if (res.status === 401 || data.auth_required) {
@@ -929,7 +929,7 @@
     const payload = buildPayload();
     setCloudStatus("busy", "Сохраняю…");
     try {
-      const res = await fetch("/api/default-draft", {
+      const res = await fetch("/cyprus-denis/api/default-draft", {
         method: "POST",
         headers: { "Content-Type": "application/json", "Accept": "application/json" },
         body: JSON.stringify({ payload }),
@@ -1080,7 +1080,7 @@
     historyBusy = true;
     setHistoryStatus("Загружаю архив…");
     try {
-      const url = `/api/default-draft/versions?tax_year=${encodeURIComponent(year)}&limit=${HISTORY_PAGE_SIZE}`;
+      const url = `/cyprus-denis/api/default-draft/versions?tax_year=${encodeURIComponent(year)}&limit=${HISTORY_PAGE_SIZE}`;
       const res = await fetch(url, { headers: { "Accept": "application/json" } });
       const data = await res.json();
       if (res.status === 401 || data.auth_required) {
@@ -1109,7 +1109,7 @@
     historyBusy = true;
     setCloudStatus("busy", "Восстанавливаю версию…");
     try {
-      const res = await fetch("/api/default-draft/restore", {
+      const res = await fetch("/cyprus-denis/api/default-draft/restore", {
         method: "POST",
         headers: { "Content-Type": "application/json", "Accept": "application/json" },
         body: JSON.stringify({ tax_year: year, version_id: versionId }),
@@ -1172,7 +1172,7 @@
     if (!input) return;
     if (err) err.textContent = "";
     try {
-      const res = await fetch("/api/auth/login", {
+      const res = await fetch("/cyprus-denis/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json", "Accept": "application/json" },
         body: JSON.stringify({ password: input.value }),
@@ -1194,7 +1194,7 @@
 
   async function logout() {
     try {
-      await fetch("/api/auth/logout", { method: "POST", headers: { "Accept": "application/json" } });
+      await fetch("/cyprus-denis/api/auth/logout", { method: "POST", headers: { "Accept": "application/json" } });
     } catch (_) {
       // Showing the lock is the point; a failed call still ends the session UI.
     }
@@ -1283,7 +1283,7 @@
     setCloudStatus("busy", "Загружаю список поездок…");
     let status = null;
     try {
-      const res = await fetch("/api/auth/status", { headers: { "Accept": "application/json" } });
+      const res = await fetch("/cyprus-denis/api/auth/status", { headers: { "Accept": "application/json" } });
       status = await res.json();
     } catch (_) {
       // Treat an unreachable status probe as "no password": cloudLoad reports
