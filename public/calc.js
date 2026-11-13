@@ -41,6 +41,10 @@ const COUNTRY_ALIASES = {
   япония: "Japan", japan: "Japan",
 };
 
+// First tax year in which "not tax resident in any other state" is no longer a
+// condition of the 60-day rule (Cyprus tax reform, Law 244(I)/2025).
+const TAX_RESIDENT_ELSEWHERE_CONDITION_REMOVED_FROM = 2026;
+
 function parseDate(value) {
   if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return null;
   const date = new Date(`${value}T00:00:00.000Z`);
@@ -401,8 +405,15 @@ function calculateCyprusResidency(input) {
   if (disputedPeriods.some((p) => p.reason === "unknown_day_type")) {
     warnings.push({ type: "unknown_day_type_present" });
   }
+  // From tax year 2026 (Law 244(I)/2025, in force 1 January 2026) the 60-day
+  // rule no longer requires that the individual is not tax resident in any
+  // other state. The 183-day ceiling for any other single state still applies.
+  const taxResidentElsewhereIsCondition = !(taxYear >= TAX_RESIDENT_ELSEWHERE_CONDITION_REMOVED_FROM);
   if (input.possible_tax_resident_elsewhere !== "no") {
-    warnings.push({ type: "possible_tax_residency_elsewhere", value: input.possible_tax_resident_elsewhere });
+    warnings.push({
+      type: taxResidentElsewhereIsCondition ? "possible_tax_residency_elsewhere" : "dual_residency_tie_breaker",
+      value: input.possible_tax_resident_elsewhere,
+    });
   }
   if (input.has_cyprus_home !== "yes") {
     warnings.push({ type: "cyprus_home_not_confirmed", value: input.has_cyprus_home });
@@ -421,7 +432,7 @@ function calculateCyprusResidency(input) {
     !anyOtherCountryDaysOver183 &&
     input.has_cyprus_home === "yes" &&
     input.has_cyprus_business_or_employment_or_directorship === "yes" &&
-    input.possible_tax_resident_elsewhere === "no" &&
+    (!taxResidentElsewhereIsCondition || input.possible_tax_resident_elsewhere === "no") &&
     disputedPeriods.length === 0
   ) {
     preliminaryStatus = "likely qualifies";
@@ -445,6 +456,7 @@ function calculateCyprusResidency(input) {
       input.has_cyprus_business_or_employment_or_directorship
     ),
     possible_tax_residency_elsewhere: yesNoUnknown(input.possible_tax_resident_elsewhere),
+    tax_resident_elsewhere_is_condition: taxResidentElsewhereIsCondition,
     preliminary_status: preliminaryStatus,
     warnings,
     errors,
