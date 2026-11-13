@@ -176,7 +176,17 @@
       has_cyprus_home: $("#has_cyprus_home").value,
       has_cyprus_business_or_employment_or_directorship: $("#has_cyprus_business_or_employment_or_directorship").value,
       possible_tax_resident_elsewhere: $("#possible_tax_resident_elsewhere").value,
+      cyprus_domicile_of_origin: $("#cyprus_domicile_of_origin")?.value || "unknown",
+      prior_cyprus_resident_years: readPriorYears(),
     };
+  }
+
+  // Empty or out-of-range input is stored as null ("not filled in").
+  function readPriorYears() {
+    const raw = ($("#prior_cyprus_resident_years")?.value || "").trim();
+    if (raw === "") return null;
+    const n = Number(raw);
+    return Number.isInteger(n) && n >= 0 && n <= 20 ? n : null;
   }
 
   function buildPayload() {
@@ -227,6 +237,7 @@
     transit_days_present: (w) => `Указаны транзитные дни (${w.count}). По умолчанию они не засчитываются как дни на Кипре — уточни статус у налогового консультанта.`,
     unknown_day_type_present: () => `Есть периоды с типом «не знаю». Их нужно уточнить перед окончательной оценкой.`,
     possible_tax_residency_elsewhere: (w) => `Возможно налоговое резидентство другой страны: «${ynLabel(w.value)}». Это может полностью отменить резидентство Кипра.`,
+    dual_residency_tie_breaker_183: (w) => `Отмечено возможное налоговое резидентство другой страны: «${ynLabel(w.value)}». По правилу 183 дней это не мешает резидентству Кипра, но при двойном резидентстве страну определяют по соглашению об избежании двойного налогообложения (правила тай-брейкера). Обсуди это с налоговым консультантом.`,
     dual_residency_tie_breaker: (w) => `Отмечено возможное налоговое резидентство другой страны: «${ynLabel(w.value)}». С 2026 года это не мешает правилу 60 дней, но при двойном резидентстве страну определяют по соглашению об избежании двойного налогообложения (правила тай-брейкера). Обсуди это с налоговым консультантом.`,
     cyprus_home_not_confirmed: (w) => `Дом на Кипре не подтверждён: «${ynLabel(w.value)}». Правило 60 дней требует постоянное жильё.`,
     cyprus_business_employment_or_directorship_not_confirmed: (w) => `Бизнес, работа или директорство на Кипре не подтверждены: «${ynLabel(w.value)}». Правило 60 дней требует деловой связи с Кипром.`,
@@ -289,6 +300,60 @@
     },
   };
 
+  // Residency under the 183-day rule needs no further conditions.
+  const STATUS_183 = {
+    cls: "pass",
+    title: "Скорее всего, резидент по правилу 183 дней",
+    desc: "На Кипре больше 183 дней за календарный год. По правилу 183 дней других условий нет: жильё, бизнес и дни в других странах не нужны. Это предварительная оценка, окончательное решение за налоговым департаментом Кипра.",
+    tag: "likely qualifies · 183-day rule",
+  };
+
+  const NON_DOM_LABELS = {
+    likely_non_dom: {
+      cls: "pass",
+      title: "Скорее всего, non-dom доступен",
+      desc: () => "Резидентство Кипра в этом году выглядит выполненным, домицилий происхождения не кипрский и порог 17 лет из 20 не достигнут. Дивиденды и проценты не облагаются SDC. Статус нужно оформить формой T.D.38.",
+    },
+    not_resident: {
+      cls: "fail",
+      title: "В этом году non-dom не применяется",
+      desc: () => "Non-dom действует только для налогового резидента Кипра, а по расчёту резидентства в этом году нет. Статус заработает в году, когда выполнится правило 183 или 60 дней.",
+    },
+    depends_on_residency: {
+      cls: "review",
+      title: "Non-dom зависит от резидентства",
+      desc: () => "Домицилий и порог 17 лет в порядке, но резидентство Кипра пока не подтверждено расчётом. Сначала закрой вопросы из блока предупреждений.",
+    },
+    deemed_domiciled: {
+      cls: "fail",
+      title: "Считаешься домицилированным на Кипре",
+      desc: (nd) => nd.extension_possible
+        ? "За 20 предыдущих лет у тебя 17 или больше лет резидентства Кипра, поэтому обычный non-dom закончился. Так как домицилий происхождения не кипрский, статус можно продлить: 250 000 евро за 5 лет, не больше двух раз, форма TD 631 до 30 июня первого года пятилетки."
+        : "За 20 предыдущих лет у тебя 17 или больше лет резидентства Кипра, поэтому обычный non-dom закончился. Платное продление (форма TD 631) доступно только при некипрском домицилии происхождения: уточни его.",
+    },
+    cyprus_origin_review: {
+      cls: "review",
+      title: "Нужна проверка консультанта",
+      desc: () => "При кипрском домицилии происхождения non-dom возможен только в исключениях: домицилий выбора за границей и 20 лет подряд без резидентства Кипра, или жизнь за границей больше 20 лет подряд до 16.07.2015. Для этого есть анкета T.D.38QB.",
+    },
+    needs_data: {
+      cls: "review",
+      title: "Не хватает данных для оценки",
+      desc: () => "Укажи домицилий происхождения и число лет резидентства Кипра за 20 предыдущих лет.",
+    },
+  };
+
+  function renderNonDom(result) {
+    const nd = result.non_dom;
+    const card = $("#nondom-status");
+    if (!nd || !card) return;
+    const info = NON_DOM_LABELS[nd.status] || NON_DOM_LABELS.needs_data;
+    card.classList.remove("pass", "fail", "review");
+    card.classList.add(info.cls);
+    $("[data-testid=nondom-title]").textContent = info.title;
+    $("[data-testid=nondom-desc]").textContent = info.desc(nd);
+  }
+
   function render(result) {
     resultsSection.classList.add("shown");
 
@@ -309,7 +374,9 @@
       : "страна с максимумом дней — нет";
 
     // Status
-    const statusInfo = STATUS_LABELS[result.preliminary_status] || STATUS_LABELS["needs tax advisor review"];
+    const statusInfo = result.residency_rule === "183"
+      ? STATUS_183
+      : STATUS_LABELS[result.preliminary_status] || STATUS_LABELS["needs tax advisor review"];
     const statusCard = $("#status-card");
     statusCard.classList.remove("pass", "fail", "review");
     statusCard.classList.add(statusInfo.cls);
@@ -319,6 +386,7 @@
 
     renderTripDayCells(result);
     renderInlineCountrySummary(result);
+    renderNonDom(result);
 
     // Country breakdown
     const countryBody = $("#country-body");
@@ -464,11 +532,21 @@
     lines.push(`- Есть другая страна с более чем 183 днями: ${result.any_other_country_days_over_183}`);
     lines.push(`- Максимум в другой стране: ${result.max_other_country.country || "нет"} (${result.max_other_country.days} дн.)`);
     lines.push(`- Предварительный статус: ${result.preliminary_status}`);
+    lines.push(`- Основание резидентства: ${result.residency_rule === "183" ? "правило 183 дней" : result.residency_rule === "60" ? "правило 60 дней" : "не определено"}`);
     lines.push("");
     lines.push("Контрольные условия:");
     lines.push(`- Постоянное жильё на Кипре: ${result.permanent_home_in_cyprus}`);
     lines.push(`- Бизнес, работа или директорство на Кипре: ${result.business_employment_or_directorship_in_cyprus}`);
     lines.push(`- Возможное налоговое резидентство другой страны: ${result.possible_tax_residency_elsewhere}${result.tax_resident_elsewhere_is_condition ? "" : " (с 2026 года не условие правила 60 дней)"}`);
+    if (result.non_dom) {
+      const nd = result.non_dom;
+      const ndInfo = NON_DOM_LABELS[nd.status] || NON_DOM_LABELS.needs_data;
+      lines.push("");
+      lines.push("Non-dom:");
+      lines.push(`- Домицилий происхождения на Кипре: ${ynLabel(nd.domicile_of_origin_in_cyprus)}`);
+      lines.push(`- Лет резидентства Кипра за 20 предыдущих лет: ${nd.prior_cyprus_resident_years === null ? "не указано" : nd.prior_cyprus_resident_years}`);
+      lines.push(`- Оценка: ${ndInfo.title}`);
+    }
     lines.push("");
     lines.push("Настройки подсчёта дней:");
     lines.push(`- День прибытия на Кипр считается днём на Кипре: ${boolRu(result.settings_used.arrival_day_counts_for_cyprus)}`);
@@ -855,6 +933,13 @@
     }
     if (p.possible_tax_resident_elsewhere) {
       $("#possible_tax_resident_elsewhere").value = p.possible_tax_resident_elsewhere;
+    }
+    if ($("#cyprus_domicile_of_origin")) {
+      $("#cyprus_domicile_of_origin").value = ["yes", "no"].includes(p.cyprus_domicile_of_origin) ? p.cyprus_domicile_of_origin : "unknown";
+    }
+    if ($("#prior_cyprus_resident_years")) {
+      const y = p.prior_cyprus_resident_years;
+      $("#prior_cyprus_resident_years").value = Number.isInteger(y) ? String(y) : "";
     }
     const s = p.settings || {};
     const settingMap = {
@@ -1260,6 +1345,8 @@
     "#has_cyprus_home",
     "#has_cyprus_business_or_employment_or_directorship",
     "#possible_tax_resident_elsewhere",
+    "#cyprus_domicile_of_origin",
+    "#prior_cyprus_resident_years",
     "#set_arrival_cyprus",
     "#set_departure_cyprus",
     "#set_same_day_arr_dep_cyprus",
@@ -1273,6 +1360,19 @@
     if (!el) continue;
     el.addEventListener("input", () => scheduleAutosave());
     el.addEventListener("change", () => scheduleAutosave());
+  }
+
+  // The non-dom card follows its two fields at once, without scrolling the
+  // page to the results, once a calculation has been shown.
+  for (const sel of ["#cyprus_domicile_of_origin", "#prior_cyprus_resident_years"]) {
+    const el = $(sel);
+    if (!el) continue;
+    el.addEventListener("change", () => {
+      if (!currentResult) return;
+      window._suppressScroll = true;
+      runCalc();
+      window._suppressScroll = false;
+    });
   }
 
   $("#tax_year")?.addEventListener("input", refreshAdvancedPanel);

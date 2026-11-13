@@ -128,6 +128,7 @@
           <option value="no">нет</option>
           <option value="unknown">не знаю</option>
         </select>
+        <span class="hint" data-testid="hint-cyprus-business">Связь должна сохраняться до 31 декабря. Если её прекратить в течение года, правило 60 дней за этот год не работает.</span>
       </div>
       <div class="field">
         <label for="possible_tax_resident_elsewhere">Возможное налоговое резидентство другой страны</label>
@@ -379,6 +380,67 @@
       <pre class="report-text" id="consultant-report" data-testid="consultant-report">Запусти расчёт, чтобы сформировать отчёт.</pre>
     </section>
 
+  </section>
+
+  <!-- Non-dom -->
+  <section class="card nondom-card" aria-labelledby="nondom-h" data-testid="nondom-card">
+    <h2 id="nondom-h">Статус non-dom</h2>
+    <p class="desc">Non-dom освобождает налогового резидента Кипра от взноса на оборону (SDC) с дивидендов и процентов. Сначала нужно резидентство по правилу 183 или 60 дней, затем отсутствие кипрского домицилия.</p>
+    <div class="grid grid-2">
+      <div class="field">
+        <label for="cyprus_domicile_of_origin">Домицилий происхождения на Кипре</label>
+        <select id="cyprus_domicile_of_origin" class="input" data-testid="select-domicile-origin">
+          <option value="unknown">не знаю</option>
+          <option value="no">нет</option>
+          <option value="yes">да</option>
+        </select>
+        <span class="hint">Его получают при рождении, обычно по домицилию отца.</span>
+      </div>
+      <div class="field">
+        <label for="prior_cyprus_resident_years">Лет резидентства Кипра за 20 предыдущих лет</label>
+        <input id="prior_cyprus_resident_years" type="number" class="input" min="0" max="20" step="1" inputmode="numeric" placeholder="например, 0" data-testid="input-prior-resident-years" />
+        <span class="hint">Считай годы до выбранного налогового года. С 17 лет человек считается домицилированным на Кипре.</span>
+      </div>
+    </div>
+
+    <div class="status-card review nondom-status" id="nondom-status" data-testid="nondom-status">
+      <div class="status-dot"></div>
+      <div>
+        <p class="status-title" data-testid="nondom-title">Оценка non-dom</p>
+        <p class="status-desc" data-testid="nondom-desc">Запусти расчёт, чтобы увидеть оценку.</p>
+      </div>
+    </div>
+
+    <div class="nondom-grid">
+      <div>
+        <h3>Что подать в налоговую</h3>
+        <ul class="nondom-list" data-testid="nondom-checklist">
+          <li>Кипрский налоговый номер (TIC).</li>
+          <li>Форма T.D.38: декларация о статусе non-dom.</li>
+          <li>Анкета T.D.38QA о домицилии происхождения и документ о месте рождения отца.</li>
+          <li>Анкета T.D.38QB, если домицилий происхождения кипрский и ты опираешься на домицилий выбора за границей.</li>
+          <li>Форма T.D.624/NP для тех, кто платит тебе дивиденды и проценты, чтобы они не удерживали SDC.</li>
+          <li>Подтверждение резидентства: даты поездок, договор аренды или документ о собственности, документы о связи с кипрской компанией.</li>
+        </ul>
+        <p class="nondom-note">Документы подают в налоговую инспекцию своего района.</p>
+      </div>
+      <div>
+        <h3>Что даёт статус</h3>
+        <ul class="nondom-list">
+          <li>Дивиденды: без SDC. С кипрским домицилием ставка 5%.</li>
+          <li>Проценты: без SDC. С кипрским домицилием ставка 17%.</li>
+          <li>Аренда: с 2026 года SDC с неё не платит никто.</li>
+        </ul>
+        <h3>После 17 лет</h3>
+        <p class="nondom-note">Если домицилий происхождения не кипрский, статус можно продлить на 5 лет за 250 000 евро, не больше двух раз (всего до 27 лет). Заявление по форме TD 631 подают до 30 июня первого года пятилетки.</p>
+      </div>
+    </div>
+    <p class="sources">Источники:
+      <a href="https://www.gov.cy/mof-tax/en/documents/tax-residency-domicility/" target="_blank" rel="noopener">Налоговый департамент Кипра</a> ·
+      <a href="https://assets.kpmg.com/content/dam/kpmgsites/cy/pdf/2026/cyprus-tax-residency-and-non-dom-rules-04-26.pdf.coredownload.inline.pdf" target="_blank" rel="noopener">KPMG, 2026</a> ·
+      <a href="https://seamark.com.cy/en/newsroom/extension-of-non-dom-regime/" target="_blank" rel="noopener">Seamark, продление non-dom</a> ·
+      <a href="https://www.legal500.com/intelligence/cyprus/tax/cyprus-tax-residency-the-definitive-guide-to-the-60-day-rule-non-dom-status-and-tax-free-dividends-2026" target="_blank" rel="noopener">Legal500, документы</a>
+    </p>
   </section>
 
   <!-- Disclaimer -->

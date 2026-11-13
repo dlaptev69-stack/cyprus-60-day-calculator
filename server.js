@@ -506,6 +506,17 @@ function validatePayload(p) {
       return `invalid ${k}`;
     }
   }
+  if (
+    p.cyprus_domicile_of_origin !== undefined &&
+    p.cyprus_domicile_of_origin !== null &&
+    !YN.has(p.cyprus_domicile_of_origin)
+  ) {
+    return "invalid cyprus_domicile_of_origin";
+  }
+  if (p.prior_cyprus_resident_years !== undefined && p.prior_cyprus_resident_years !== null) {
+    const y = p.prior_cyprus_resident_years;
+    if (!Number.isInteger(y) || y < 0 || y > 20) return "invalid prior_cyprus_resident_years";
+  }
   if (p.settings !== undefined && p.settings !== null) {
     if (typeof p.settings !== "object") return "settings must be an object";
     for (const k of Object.keys(p.settings)) {
