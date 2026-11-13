@@ -17,6 +17,7 @@ const crypto = require("crypto");
 const express = require("express");
 const rateLimit = require("express-rate-limit");
 const Database = require("better-sqlite3");
+const { namespaceMiddleware } = require("./lib/astravela.cjs");
 // The same ordering rule the frontend uses, so a draft is stored sorted even if
 // an older client (or a direct API call) sends trips out of order.
 const { sortTripsByDate } = require("./public/calc.js");
@@ -536,6 +537,7 @@ function validatePayload(p) {
 
 const app = express();
 app.disable("x-powered-by");
+app.use(namespaceMiddleware({ base: "/cyprus-nadya", cookieName: SESSION_COOKIE }));
 app.use(express.json({ limit: MAX_PAYLOAD_BYTES }));
 app.use((err, req, res, next) => {
   if (err && err.type === "entity.too.large") {
